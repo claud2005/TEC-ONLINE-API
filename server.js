@@ -555,6 +555,9 @@ app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
   }
 });
 
+app.get('/', (req, res) => {
+    res.status(200).json('Welcome, your app is working well! 🚀');
+});
 
 // Iniciar servidor
 app.listen(PORT, () => {
