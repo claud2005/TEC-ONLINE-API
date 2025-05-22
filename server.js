@@ -277,15 +277,15 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 });
 
 // Verificando e criando a pasta 'img-servicos' caso não exista
-const imgServicosPath = path.join(__dirname, 'img-servicos');
-if (!fs.existsSync(imgServicosPath)) {
-  fs.mkdirSync(imgServicosPath);
-  console.log('Pasta "img-servicos" criada com sucesso!');
-} else {
-  console.log('A pasta "img-servicos" já existe.');
-}
+// const imgServicosPath = path.join(__dirname, 'img-servicos');
+// if (!fs.existsSync(imgServicosPath)) {
+//   fs.mkdirSync(imgServicosPath);
+//   console.log('Pasta "img-servicos" criada com sucesso!');
+// } else {
+//   console.log('A pasta "img-servicos" já existe.');
+// }
 
-app.use('/img-servicos', express.static(imgServicosPath)); // Tornando a pasta acessível via URL
+// app.use('/img-servicos', express.static(imgServicosPath)); // Tornando a pasta acessível via URL
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
