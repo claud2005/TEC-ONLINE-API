@@ -14,7 +14,8 @@ const nodemailer = require('nodemailer');
 dotenv.config();
 
 const User = require('./models/User');
-const Servico = require('./models/Servicos'); // Importando o modelo Servico
+const Servico = require('./models/Servicos'); 
+const Cliente = require('./models/Cliente'); 
 
 const app = express();
 
@@ -274,8 +275,6 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
     next(error);
   }
 });
-
-
 
 // Verificando e criando a pasta 'img-servicos' caso não exista
 const imgServicosPath = path.join(__dirname, 'img-servicos');
