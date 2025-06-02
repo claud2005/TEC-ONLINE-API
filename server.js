@@ -201,10 +201,10 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
     ).select('fullName username profilePicture');
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'Usuário não encontrado' });
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    console.log('Usuário atualizado:', updatedUser);  // Verifica os dados atualizados
+    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
     return res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
