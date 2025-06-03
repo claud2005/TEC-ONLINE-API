@@ -469,7 +469,7 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
     const { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente } = req.body;
 
-    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte || !codigoCliente || !numeroCliente) {
+    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
