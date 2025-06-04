@@ -276,16 +276,47 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Verificando e criando a pasta 'img-servicos' caso não exista
-// const imgServicosPath = path.join(__dirname, 'img-servicos');
-// if (!fs.existsSync(imgServicosPath)) {
-//   fs.mkdirSync(imgServicosPath);
-//   console.log('Pasta "img-servicos" criada com sucesso!');
-// } else {
-//   console.log('A pasta "img-servicos" já existe.');
-// }
 
-// app.use('/img-servicos', express.static(imgServicosPath)); // Tornando a pasta acessível via URL
+app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res, next) => {
+  try {
+    const {
+      dataServico, horaServico, status, nomeCliente, telefoneContato,
+      modeloAparelho, marcaAparelho, problemaCliente, solucaoInicial,
+      valorTotal, observacoes, autorServico
+    } = req.body;
+
+    // pega nomes dos arquivos enviados
+    const imagens = req.files.map(file => file.filename); // ou file.path se quiser o caminho completo
+
+    const updateData = {
+      dataServico,
+      horaServico,
+      status,
+      nomeCliente,
+      telefoneContato,
+      modeloAparelho,
+      marcaAparelho,
+      problemaCliente,
+      solucaoInicial,
+      valorTotal: parseFloat(valorTotal),
+      observacoes,
+      autorServico,
+      imagens,
+    };
+
+    const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    if (!servicoAtualizado) {
+      return res.status(404).json({ message: 'Serviço não encontrado!' });
+    }
+
+    res.status(200).json({ message: 'Serviço atualizado com sucesso!', servico: servicoAtualizado });
+  } catch (error) {
+    console.error('Erro ao atualizar serviço:', error);
+    next(error);
+  }
+});
+
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
@@ -438,7 +469,7 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
     const { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente } = req.body;
 
-    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte || !codigoCliente || !numeroCliente) {
+    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
