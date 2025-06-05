@@ -496,28 +496,38 @@ app.get('/api/clientes', authenticateToken, async (req, res) => {
 });
 
 
-// Rota para editar um cliente
+// Rota para editar cliente existente
 app.put('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
     const { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente } = req.body;
-    const clienteId = req.params.id;
+    const { id } = req.params;
 
-    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte || !codigoCliente || !numeroCliente) {
+    // Validação dos campos obrigatórios
+    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
-    // Atualizar os dados do cliente
-    const clienteAtualizado = await Cliente.findByIdAndUpdate(
-      clienteId, 
-      { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente },
-      { new: true }
-    );
-
-    if (!clienteAtualizado) {
+    // Verifica se o cliente existe
+    const clienteExistente = await Cliente.findById(id);
+    if (!clienteExistente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    res.status(200).json({ message: 'Cliente atualizado com sucesso!', cliente: clienteAtualizado });
+    // Atualiza os campos
+    clienteExistente.nome = nome;
+    clienteExistente.morada = morada;
+    clienteExistente.codigoPostal = codigoPostal;
+    clienteExistente.contacto = contacto;
+    clienteExistente.email = email;
+    clienteExistente.contribuinte = contribuinte;
+    clienteExistente.codigoCliente = codigoCliente;
+    clienteExistente.numeroCliente = numeroCliente;
+
+    // Salva a atualização
+    await clienteExistente.save();
+
+    res.json({ message: 'Cliente atualizado com sucesso!', cliente: clienteExistente });
+
   } catch (error) {
     res.status(500).json({ message: 'Erro ao atualizar cliente', error: error.message });
   }
