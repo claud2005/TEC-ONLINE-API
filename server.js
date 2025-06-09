@@ -356,7 +356,7 @@ app.post('/api/esqueceu-password', [
 
     await user.save();
 
-const resetLink = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+    const resetLink = `${environment.api_url}/api/reset-password/${resetToken}`;
     console.log('Link de redefinição gerado:', resetLink); // Log do link de reset
 
     // Envio de e-mail
