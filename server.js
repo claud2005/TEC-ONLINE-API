@@ -318,6 +318,34 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
 });
 
 
+// Rota PATCH para atualizar apenas o status do serviço
+app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: 'O status é obrigatório.' });
+    }
+
+    const servicoAtualizado = await Servico.findByIdAndUpdate(
+      req.params.id,
+      { status: status },
+      { new: true }
+    );
+
+    if (!servicoAtualizado) {
+      return res.status(404).json({ message: 'Serviço não encontrado!' });
+    }
+
+    res.status(200).json({ message: 'Status atualizado com sucesso!', servico: servicoAtualizado });
+  } catch (error) {
+    console.error('Erro ao atualizar status do serviço:', error);
+    next(error);
+  }
+});
+
+
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
