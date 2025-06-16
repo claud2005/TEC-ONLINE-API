@@ -354,6 +354,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Rota para "Esqueceu a senha"
 app.post('/api/esqueceu-password', [
   body('email').isEmail().withMessage('E-mail inválido')
 ], async (req, res, next) => {
@@ -365,71 +366,49 @@ app.post('/api/esqueceu-password', [
   const { email } = req.body;
 
   try {
-    console.log('Processando solicitação de recuperação de senha para e-mail:', email);
-
-    // Verificar credenciais de e-mail
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error('Credenciais de e-mail não configuradas no servidor');
-    }
+    console.log('Processando solicitação de recuperação de senha para e-mail:', email); // Log de depuração
 
     const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('Usuário não encontrado com o e-mail:', email);
-      // Por segurança, retorne sempre 200 para não revelar quais e-mails estão cadastrados
-      return res.status(200).json({ 
-        success: true,
-        message: 'Se o e-mail estiver cadastrado, você receberá um link de recuperação' 
-      });
+      console.log('Usuário não encontrado com o e-mail:', email); // Log de erro
+      return res.status(404).json({ message: 'Usuário com este e-mail não foi encontrado.' });
     }
 
     // Gerar o token de reset
     const resetToken = crypto.randomBytes(32).toString('hex');
-    console.log('Token de redefinição gerado:', resetToken);
+    console.log('Token de redefinição gerado:', resetToken); // Log de token gerado
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hora
+
     await user.save();
 
-    // Usar a URL do frontend para o link de reset
-    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
-    console.log('Link de redefinição gerado:', resetLink);
+    const resetLink = `${environment.api_url}/api/reset-password/${resetToken}`;
+    console.log('Link de redefinição gerado:', resetLink); // Log do link de reset
 
     // Envio de e-mail
-    try {
-      await transporter.sendMail({
-        to: user.email,
-        subject: 'Redefinição de Senha - Tec Online',
-        html: `
-          <h3>Olá, ${user.fullName}</h3>
-          <p>Você solicitou a redefinição de sua senha.</p>
-          <p>Clique no link abaixo para criar uma nova senha:</p>
-          <a href="${resetLink}">Redefinir Senha</a>
-          <p>Se você não solicitou isso, ignore este e-mail.</p>
-          <p>O link expirará em 1 hora.</p>
-        `,
-      });
+    await transporter.sendMail({
+      to: user.email,
+      subject: 'Redefinição de Senha - Tec Online',
+      html: `
+        <h3>Olá, ${user.fullName}</h3>
+        <p>Você solicitou a redefinição de sua senha.</p>
+        <p>Clique no link abaixo para criar uma nova senha:</p>
+        <a href="${resetLink}">${resetLink}</a>
+        <p>Se você não solicitou isso, ignore este e-mail.</p>
+      `,
+    });
 
-      return res.status(200).json({
-        success: true,
-        message: 'Link de redefinição enviado para o e-mail cadastrado',
-      });
-    } catch (emailError) {
-      console.error('Erro ao enviar e-mail:', emailError);
-      // Reverter o token já que o e-mail falhou
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpires = undefined;
-      await user.save();
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao enviar e-mail de recuperação',
-      });
-    }
+    return res.status(200).json({
+      message: 'Link de redefinição de senha enviado por e-mail com sucesso.',
+    });
   } catch (error) {
-    console.error('Erro ao tentar redefinir senha:', error);
-    next(error);
+    console.error('Erro ao tentar redefinir senha:', error); // Log de erro detalhado
+    res.status(500).json({
+      message: 'Ocorreu um erro interno ao processar a solicitação.',
+      error: error.message,
+    });
   }
 });
 

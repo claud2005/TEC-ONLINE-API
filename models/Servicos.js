@@ -6,8 +6,12 @@ const servicoSchema = new mongoose.Schema({
     required: true, 
     unique: true 
   },
-  data: { 
-    type: Date, 
+  dataServico: { 
+    type: String,   // Ex.: '2025-06-16'
+    required: true 
+  },
+  horaServico: { 
+    type: String,   // Ex.: '14:30'
     required: true 
   },
   status: { 
@@ -67,7 +71,7 @@ const servicoSchema = new mongoose.Schema({
     required: true 
   },
   imagens: {
-    type: [String], // Armazena nomes/paths das imagens
+    type: [String], 
     default: []
   }
 });
