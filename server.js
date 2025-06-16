@@ -230,6 +230,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     const novoServico = new Servico({
       numero: new Date().getTime().toString(),
       data: dataServico,
+      hora: horaServico,
       status: status,
       cliente: nomeCliente,
       descricao: problemaCliente,
@@ -289,6 +290,7 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
 
     const updateData = {
       data: dataServico,
+      hora: horaServico,
       status: status,
       cliente: nomeCliente,
       descricao: problemaCliente,
