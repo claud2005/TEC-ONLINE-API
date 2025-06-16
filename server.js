@@ -285,23 +285,24 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       valorTotal, observacoes, autorServico
     } = req.body;
 
-    // pega nomes dos arquivos enviados
-    const imagens = req.files.map(file => file.filename); // ou file.path se quiser o caminho completo
+    const imagens = req.files.map(file => file.filename);
 
     const updateData = {
-      dataServico,
-      horaServico,
-      status,
-      nomeCliente,
-      telefoneContato,
-      modeloAparelho,
-      marcaAparelho,
-      problemaCliente,
-      solucaoInicial,
+      data: dataServico,
+      status: status,
+      cliente: nomeCliente,
+      descricao: problemaCliente,
+      responsavel: autorServico,
+      observacoes: observacoes,
+      autorServico: autorServico,
+      nomeCompletoCliente: nomeCliente,
+      contatoCliente: telefoneContato,
+      modeloAparelho: modeloAparelho,
+      marcaAparelho: marcaAparelho,
+      problemaRelatado: problemaCliente,
+      solucaoInicial: solucaoInicial,
       valorTotal: parseFloat(valorTotal),
-      observacoes,
-      autorServico,
-      imagens,
+      imagens
     };
 
     const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -316,7 +317,6 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
     next(error);
   }
 });
-
 
 // Rota PATCH para atualizar apenas o status do serviço
 app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
