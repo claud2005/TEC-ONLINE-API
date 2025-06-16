@@ -72,7 +72,8 @@ const servicoSchema = new mongoose.Schema({
   },
   imagens: {
     type: [String], 
-    default: []
+    default: [],
+    required: false
   }
 });
 
