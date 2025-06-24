@@ -229,7 +229,8 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
 
     const novoServico = new Servico({
       numero: new Date().getTime().toString(),
-      data: dataServico,
+      dataServico: dataServico,
+      horaServico: horaServico,
       status: status,
       cliente: nomeCliente,
       descricao: problemaCliente,
@@ -285,23 +286,25 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       valorTotal, observacoes, autorServico
     } = req.body;
 
-    // pega nomes dos arquivos enviados
-    const imagens = req.files.map(file => file.filename); // ou file.path se quiser o caminho completo
+    const imagens = req.files.map(file => file.filename);
 
     const updateData = {
-      dataServico,
-      horaServico,
-      status,
-      nomeCliente,
-      telefoneContato,
-      modeloAparelho,
-      marcaAparelho,
-      problemaCliente,
-      solucaoInicial,
+      dataServico: dataServico,
+      horaServico: horaServico,
+      status: status,
+      cliente: nomeCliente,
+      descricao: problemaCliente,
+      responsavel: autorServico,
+      observacoes: observacoes,
+      autorServico: autorServico,
+      nomeCompletoCliente: nomeCliente,
+      contatoCliente: telefoneContato,
+      modeloAparelho: modeloAparelho,
+      marcaAparelho: marcaAparelho,
+      problemaRelatado: problemaCliente,
+      solucaoInicial: solucaoInicial,
       valorTotal: parseFloat(valorTotal),
-      observacoes,
-      autorServico,
-      imagens,
+      imagens
     };
 
     const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -316,7 +319,6 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
     next(error);
   }
 });
-
 
 // Rota PATCH para atualizar apenas o status do serviço
 app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
@@ -354,6 +356,7 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Rota para "Esqueceu a senha"
 app.post('/api/esqueceu-password', [
   body('email').isEmail().withMessage('E-mail inválido')
 ], async (req, res, next) => {
@@ -375,61 +378,44 @@ return res.status(200).send(process.env.EMAIL_USER)
     const user = await User.findOne({ email });
 
     if (!user) {
-      console.log('Usuário não encontrado com o e-mail:', email);
-      // Por segurança, retorne sempre 200 para não revelar quais e-mails estão cadastrados
-      return res.status(200).json({ 
-        success: true,
-        message: 'Se o e-mail estiver cadastrado, você receberá um link de recuperação' 
-      });
+      console.log('Usuário não encontrado com o e-mail:', email); // Log de erro
+      return res.status(404).json({ message: 'Usuário com este e-mail não foi encontrado.' });
     }
 
     // Gerar o token de reset
     const resetToken = crypto.randomBytes(32).toString('hex');
-    console.log('Token de redefinição gerado:', resetToken);
+    console.log('Token de redefinição gerado:', resetToken); // Log de token gerado
 
     user.resetPasswordToken = resetToken;
     user.resetPasswordExpires = Date.now() + 3600000; // 1 hora
+
     await user.save();
 
-    // Usar a URL do frontend para o link de reset
-    const frontendUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
-    const resetLink = `${frontendUrl}/reset-password?token=${resetToken}`;
-    console.log('Link de redefinição gerado:', resetLink);
+    const resetLink = `${environment.api_url}/api/reset-password/${resetToken}`;
+    console.log('Link de redefinição gerado:', resetLink); // Log do link de reset
 
     // Envio de e-mail
-    try {
-      await transporter.sendMail({
-        to: user.email,
-        subject: 'Redefinição de Senha - Tec Online',
-        html: `
-          <h3>Olá, ${user.fullName}</h3>
-          <p>Você solicitou a redefinição de sua senha.</p>
-          <p>Clique no link abaixo para criar uma nova senha:</p>
-          <a href="${resetLink}">Redefinir Senha</a>
-          <p>Se você não solicitou isso, ignore este e-mail.</p>
-          <p>O link expirará em 1 hora.</p>
-        `,
-      });
+    await transporter.sendMail({
+      to: user.email,
+      subject: 'Redefinição de Senha - Tec Online',
+      html: `
+        <h3>Olá, ${user.fullName}</h3>
+        <p>Você solicitou a redefinição de sua senha.</p>
+        <p>Clique no link abaixo para criar uma nova senha:</p>
+        <a href="${resetLink}">${resetLink}</a>
+        <p>Se você não solicitou isso, ignore este e-mail.</p>
+      `,
+    });
 
-      return res.status(200).json({
-        success: true,
-        message: 'Link de redefinição enviado para o e-mail cadastrado',
-      });
-    } catch (emailError) {
-      console.error('Erro ao enviar e-mail:', emailError);
-      // Reverter o token já que o e-mail falhou
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpires = undefined;
-      await user.save();
-      
-      return res.status(500).json({
-        success: false,
-        message: 'Erro ao enviar e-mail de recuperação',
-      });
-    }
+    return res.status(200).json({
+      message: 'Link de redefinição de senha enviado por e-mail com sucesso.',
+    });
   } catch (error) {
-    console.error('Erro ao tentar redefinir senha:', error);
-    next(error);
+    console.error('Erro ao tentar redefinir senha:', error); // Log de erro detalhado
+    res.status(500).json({
+      message: 'Ocorreu um erro interno ao processar a solicitação.',
+      error: error.message,
+    });
   }
 });
 
