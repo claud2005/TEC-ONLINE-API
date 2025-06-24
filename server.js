@@ -369,7 +369,6 @@ app.post('/api/esqueceu-password', [
 
   try {
     console.log('Processando solicitação de recuperação de senha para e-mail:', email);
-return res.status(200).send("Marcelo")
     // Verificar credenciais de e-mail
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       throw new Error('Credenciais de e-mail não configuradas no servidor');
