@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator'); // Para validação de dados
 const multer = require('multer'); // Importando o multer para manipulação de arquivos
+const { put } = require('@vercel/blob');
 const path = require('path');
 const fs = require('fs'); // Importando o fs para verificar e criar a pasta
 const crypto = require('crypto');
@@ -180,18 +181,24 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
 
-    // Dados para atualizar
     const { fullName, username } = req.body;
-    console.log('Dados recebidos:', { fullName, username, profilePicture: req.file?.filename });  // Log para depuração
 
     if (!fullName || !username) {
       return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
     }
 
-    // Preparar o caminho da imagem
     let profilePicture = '';
+
     if (req.file) {
-      profilePicture = `uploads/${req.file.filename}`;
+      // Usa buffer do multer para enviar para o Vercel Blob
+      const extension = req.file.originalname.split('.').pop();
+      const blob = await put(`profile-${userId}.${extension}`, req.file.buffer, {
+        access: 'public',
+        contentType: req.file.mimetype,
+        allowOverwrite: true,
+      });
+
+      profilePicture = blob.url; // URL pública da imagem
     }
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -204,7 +211,6 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
     return res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
