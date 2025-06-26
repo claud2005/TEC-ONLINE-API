@@ -17,14 +17,6 @@ const User = require('./models/User');
 const Servico = require('./models/Servicos'); 
 const Cliente = require('./models/Cliente'); 
 
-
-const { BlobServiceClient } = require('@vercel/blob');
-
-const blobClient = BlobServiceClient({
-  token: process.env.BLOB_READ_WRITE_TOKEN,
-});
-
-
 const app = express();
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
@@ -188,42 +180,31 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
 
+    // Dados para atualizar
     const { fullName, username } = req.body;
+    console.log('Dados recebidos:', { fullName, username, profilePicture: req.file?.filename });  // Log para depuração
 
     if (!fullName || !username) {
       return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
     }
 
+    // Preparar o caminho da imagem
     let profilePicture = '';
-
     if (req.file) {
-      // Usa buffer do multer para enviar para o Vercel Blob
-      const extension = req.file.originalname.split('.').pop();
-      const blob = await put(`profile-${userId}.${extension}`, req.file.buffer, {
-        access: 'public',
-        contentType: req.file.mimetype,
-        allowOverwrite: true,
-      });
-
-      profilePicture = blob.url; // URL pública da imagem
+      profilePicture = `uploads/${req.file.filename}`;
     }
 
-    const updateData = { fullName, username };
-if (profilePicture) {
-  updateData.profilePicture = profilePicture;
-}
-
-const updatedUser = await User.findByIdAndUpdate(
-  userId,
-  updateData,
-  { new: true }
-).select('fullName username profilePicture');
-
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fullName, username, profilePicture },
+      { new: true }
+    ).select('fullName username profilePicture');
 
     if (!updatedUser) {
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
+    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
     return res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
