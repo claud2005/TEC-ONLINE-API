@@ -7,7 +7,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator'); // Para validação de dados
 const multer = require('multer'); // Importando o multer para manipulação de arquivos
-const { put } = require('@vercel/blob');
 const path = require('path');
 const fs = require('fs'); // Importando o fs para verificar e criar a pasta
 const crypto = require('crypto');
@@ -17,6 +16,7 @@ dotenv.config();
 const User = require('./models/User');
 const Servico = require('./models/Servicos'); 
 const Cliente = require('./models/Cliente'); 
+
 
 const app = express();
 
@@ -64,19 +64,6 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
-
-// Configuração do multer para armazenamento de imagem
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/'); // Diretório para armazenar as imagens
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, Date.now() + ext); // Definir um nome único para o arquivo
-  },
-});
-
-const upload = multer({ storage });
 
 // Rota para registrar um novo usuário
 app.post('/api/signup', [
@@ -173,6 +160,18 @@ app.get('/api/profile', authenticateToken, async (req, res, next) => {
 });
 
 // Rota para atualizar o perfil do usuário autenticado
+const { BlobServiceClient } = require('@vercel/blob');
+const multer = require('multer');
+
+// Armazenamento em memória (obrigatório para acessar req.file.buffer)
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+const blobClient = BlobServiceClient({
+  token: process.env.VERCEL_BLOB_READ_WRITE_TOKEN,
+});
+
 app.put('/api/profile', authenticateToken, upload.single('profilePicture'), async (req, res, next) => {
   try {
     const userId = req.user?.userId;
@@ -190,33 +189,42 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
     let profilePicture = '';
 
     if (req.file) {
-      // Usa buffer do multer para enviar para o Vercel Blob
       const extension = req.file.originalname.split('.').pop();
-      const blob = await put(`profile-${userId}.${extension}`, req.file.buffer, {
+      const blob = await blobClient.put(`profile-${userId}.${extension}`, req.file.buffer, {
         access: 'public',
         contentType: req.file.mimetype,
+        addRandomSuffix: false,
         allowOverwrite: true,
       });
 
-      profilePicture = blob.url; // URL pública da imagem
+      profilePicture = blob.url;
+    }
+
+    const updateData = { fullName, username };
+    if (profilePicture) {
+      updateData.profilePicture = profilePicture;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { fullName, username, profilePicture },
+      updateData,
       { new: true }
     ).select('fullName username profilePicture');
 
     if (!updatedUser) {
-      return res.status(404).json({ message: 'Utilizador não encontrado' });
+      return res.status(404).json({ message: 'Usuário não encontrado' });
     }
 
-    return res.status(200).json(updatedUser);
+    return res.status(200).json({
+      message: 'Perfil atualizado com sucesso!',
+      user: updatedUser
+    });
   } catch (error) {
-    console.error('Erro ao atualizar perfil:', error);
+    console.error('❌ Erro ao atualizar perfil:', error);
     next(error);
   }
 });
+
 
 // Rota para criar um novo serviço
 app.post('/api/servicos', authenticateToken, async (req, res, next) => {
