@@ -174,61 +174,45 @@ app.get('/api/profile', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Rota para atualizar o perfil do usuário autenticado com vercel/blob
-const formidable = require('formidable');
-const fs = require('fs');
-const { put } = require('@vercel/blob');
+// Rota para atualizar o perfil do usuário autenticado
+app.put('/api/profile', authenticateToken, upload.single('profilePicture'), async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
 
-app.put('/api/profile', authenticateToken, async (req, res) => {
-  const form = formidable({ multiples: false });
-
-  form.parse(req, async (err, fields, files) => {
-    try {
-      if (err) {
-        console.error('Erro ao processar o formulário:', err);
-        return res.status(500).json({ message: 'Erro ao processar formulário' });
-      }
-
-      const userId = req.user?.userId;
-      if (!userId) {
-        return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
-      }
-
-      const { fullName, username } = fields;
-      if (!fullName || !username) {
-        return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
-      }
-
-      let profilePicture = '';
-
-      if (files.profilePicture) {
-        const file = files.profilePicture;
-        const stream = fs.createReadStream(file.filepath);
-
-        const blob = await put(`users/${userId}/${file.originalFilename}`, stream, {
-          access: 'public',
-        });
-
-        profilePicture = blob.url;
-      }
-
-      const updatedUser = await User.findByIdAndUpdate(
-        userId,
-        { fullName, username, profilePicture },
-        { new: true }
-      ).select('fullName username profilePicture');
-
-      if (!updatedUser) {
-        return res.status(404).json({ message: 'Utilizador não encontrado' });
-      }
-
-      console.log('Utilizador atualizado:', updatedUser);
-      return res.status(200).json(updatedUser);
-    } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      return res.status(500).json({ message: 'Erro interno' });
+    if (!userId) {
+      return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
-  });
+
+    // Dados para atualizar
+    const { fullName, username } = req.body;
+    console.log('Dados recebidos:', { fullName, username, profilePicture: req.file?.filename });  // Log para depuração
+
+    if (!fullName || !username) {
+      return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
+    }
+
+    // Preparar o caminho da imagem
+    let profilePicture = '';
+    if (req.file) {
+      profilePicture = `uploads/${req.file.filename}`;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fullName, username, profilePicture },
+      { new: true }
+    ).select('fullName username profilePicture');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    }
+
+    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    next(error);
+  }
 });
 
 // Rota para criar um novo serviço
