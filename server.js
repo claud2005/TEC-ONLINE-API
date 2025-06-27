@@ -5,27 +5,30 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator'); // Para validação de dados
-const multer = require('multer'); // Importando o multer para manipulação de arquivos
+const { body, validationResult } = require('express-validator');
 const path = require('path');
-const fs = require('fs'); // Importando o fs para verificar e criar a pasta
+const fs = require('fs');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+
+// Novos pacotes
+const formidable = require('formidable');
+const { put } = require('@vercel/blob');
+
 dotenv.config();
 
+// Modelos
 const User = require('./models/User');
-const Servico = require('./models/Servicos'); 
-const Cliente = require('./models/Cliente'); 
+const Servico = require('./models/Servicos');
+const Cliente = require('./models/Cliente');
 
 const app = express();
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// Middlewares
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Conexão com o MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://TECONLINE:claudio654321@cluster0.1mpg6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
@@ -171,7 +174,11 @@ app.get('/api/profile', authenticateToken, async (req, res, next) => {
   }
 });
 
-// Rota para atualizar o perfil do usuário autenticado
+// Rota para atualizar o perfil do usuário autenticado com vercel/blob
+const formidable = require('formidable');
+const fs = require('fs');
+const { put } = require('@vercel/blob');
+
 app.put('/api/profile', authenticateToken, upload.single('profilePicture'), async (req, res, next) => {
   try {
     const userId = req.user?.userId;
@@ -180,23 +187,25 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
 
-    // Dados para atualizar
     const { fullName, username } = req.body;
-    console.log('Dados recebidos:', { fullName, username, profilePicture: req.file?.filename });  // Log para depuração
-
     if (!fullName || !username) {
       return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
     }
 
-    // Preparar o caminho da imagem
     let profilePicture = '';
+
+    // Se veio uma imagem, envia para o Vercel Blob
     if (req.file) {
-      profilePicture = `uploads/${req.file.filename}`;
+      const blob = await put(`users/${userId}/${Date.now()}-${req.file.originalname}`, req.file.buffer, {
+        access: 'public',
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      });
+      profilePicture = blob.url; // URL pública da imagem
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { fullName, username, profilePicture },
+      { fullName, username, ...(profilePicture && { profilePicture }) },
       { new: true }
     ).select('fullName username profilePicture');
 
@@ -204,7 +213,6 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
     return res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
