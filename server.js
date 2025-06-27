@@ -5,30 +5,27 @@ const bodyParser = require('body-parser');
 const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const { body, validationResult } = require('express-validator');
+const { body, validationResult } = require('express-validator'); // Para validação de dados
+const multer = require('multer'); // Importando o multer para manipulação de arquivos
 const path = require('path');
-const fs = require('fs');
+const fs = require('fs'); // Importando o fs para verificar e criar a pasta
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
-
-// Novos pacotes
-const formidable = require('formidable');
-const { put } = require('@vercel/blob');
-
 dotenv.config();
 
-// Modelos
 const User = require('./models/User');
-const Servico = require('./models/Servicos');
-const Cliente = require('./models/Cliente');
+const Servico = require('./models/Servicos'); 
+const Cliente = require('./models/Cliente'); 
 
 const app = express();
+
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(bodyParser.json());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Conexão com o MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://TECONLINE:claudio654321@cluster0.1mpg6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
