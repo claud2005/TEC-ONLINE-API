@@ -374,6 +374,26 @@ app.get('/api/servicos/por-cliente', authenticateToken, async (req, res, next) =
   }
 });
 
+app.get('/api/clientes/:id/orcamentos', async (req, res) => {
+  try {
+    const orcamentos = await Orcamento.find({ clienteId: req.params.id });
+    if (!orcamentos.length) return res.status(404).json({ message: 'Nenhum orçamento encontrado' });
+    res.json(orcamentos);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao buscar orçamentos' });
+  }
+});
+
+app.get('/api/clientes/:id/servicos', async (req, res) => {
+  try {
+    const servicos = await Servico.find({ clienteId: req.params.id });
+    if (!servicos.length) return res.status(404).json({ message: 'Nenhum serviço encontrado' });
+    res.json(servicos);
+  } catch (err) {
+    res.status(500).json({ message: 'Erro ao buscar serviços' });
+  }
+});
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
