@@ -87,6 +87,8 @@ app.post('/api/signup', [
   body('password').isLength({ min: 6 }).withMessage('A senha deve ter pelo menos 6 caracteres'),
   body('telefone').optional().isString().withMessage('Telefone inválido').trim(),
 ], async (req, res, next) => {
+  console.log('req.body:', req.body);  // Log para debugging
+
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
