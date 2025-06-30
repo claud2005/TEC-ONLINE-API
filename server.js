@@ -77,20 +77,21 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
-// Rota para registrar um novo usuário
+// Rota para registrar um novo utilizador
 app.post('/api/signup', [
   body('fullName').notEmpty().withMessage('Nome completo é obrigatório'),
   body('username').notEmpty().withMessage('Nome de usuário é obrigatório'),
   body('email').isEmail().withMessage('E-mail inválido'),
   body('password').isLength({ min: 6 }).withMessage('A senha deve ter pelo menos 6 caracteres'),
-], async (req, res) => {
+  body('telefone').optional().isString().withMessage('Telefone inválido').trim(),
+], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   try {
-    const { fullName, username, email, password } = req.body;
+    const { fullName, username, email, password, telefone } = req.body;
 
     // Verificar se o usuário ou o email já estão registrados
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
@@ -99,7 +100,7 @@ app.post('/api/signup', [
     }
 
     // Criar um novo usuário e salvar no banco de dados
-    const newUser = new User({ fullName, username, email, password });
+    const newUser = new User({ fullName, username, email, password, telefone });
     await newUser.save();
 
     return res.status(201).json({ message: 'Usuário registrado com sucesso!' });

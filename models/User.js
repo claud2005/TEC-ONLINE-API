@@ -33,6 +33,15 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Senha é obrigatória'],
     minlength: [6, 'Senha deve ter pelo menos 6 caracteres'],
   },
+
+  telefone: {  // <-- Novo campo telefone adicionado
+    type: String,
+    required: false,        // Altere para true se quiser tornar obrigatório
+    trim: true,
+    match: [/^\+?[0-9\s\-]{7,15}$/, 'Número de telefone inválido'],  // Exemplo de regex simples para números
+    default: '',
+  },
+
   profilePicture: {
     type: String,
     default: '',
@@ -49,7 +58,9 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: Date,
 });
 
-// Criptografar senha antes de salvar no banco de dados
+// Restante do código permanece igual
+// Criptografar senha, métodos, etc.
+
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
@@ -62,7 +73,6 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-// Método para comparar senhas
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
@@ -72,7 +82,6 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
-// Método para gerar um token JWT
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
     { userId: this._id },
@@ -82,7 +91,6 @@ userSchema.methods.generateAuthToken = function () {
   return token;
 };
 
-// Método para atualizar os dados do perfil
 userSchema.methods.updateProfile = async function (updatedData) {
   if (updatedData.fullName) {
     this.fullName = updatedData.fullName;
@@ -100,11 +108,14 @@ userSchema.methods.updateProfile = async function (updatedData) {
     this.profilePicture = updatedData.profilePicture;
   }
 
+  if (updatedData.telefone) {  // Atualizar telefone também
+    this.telefone = updatedData.telefone;
+  }
+
   await this.save();
   return this;
 };
 
-// Método para gerar o token de redefinição de senha
 userSchema.methods.generateResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex'); // Gera um token de reset único
   this.resetPasswordToken = resetToken;
@@ -112,7 +123,6 @@ userSchema.methods.generateResetPasswordToken = function () {
   return resetToken;
 };
 
-// Método para verificar se o token de redefinição de senha ainda é válido
 userSchema.methods.isResetPasswordTokenValid = function (token) {
   return this.resetPasswordToken === token && this.resetPasswordExpires > Date.now();
 };
