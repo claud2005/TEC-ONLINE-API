@@ -215,44 +215,49 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
 // Rota para criar um novo serviço
 app.post('/api/servicos', authenticateToken, async (req, res, next) => {
   try {
-    console.log('Dados recebidos:', req.body); // Log para verificar os dados recebidos
+    console.log('Dados recebidos:', req.body);
 
     const {
-      dataServico, horaServico, status, autorServico, nomeCliente, telefoneContato,
-      marcaAparelho, modeloAparelho, problemaCliente, solucaoInicial, valorTotal, observacoes
+      dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
+      nomeCliente, telefoneContato, marcaAparelho, modeloAparelho, 
+      problemaCliente, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
-    if (!dataServico || !horaServico || !status || !autorServico || !nomeCliente || !telefoneContato ||
-        !marcaAparelho || !modeloAparelho || !problemaCliente || !solucaoInicial || valorTotal === null) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
+    // Validação adicional para clienteId
+    if (!clienteId) {
+      return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
+    }
+
+    // Verificar se o cliente existe
+    const cliente = await Cliente.findById(clienteId);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
     const novoServico = new Servico({
       numero: new Date().getTime().toString(),
-      dataServico: dataServico,
-      horaServico: horaServico,
-      status: status,
+      dataServico,
+      horaServico,
+      status,
       cliente: nomeCliente,
+      clienteId, // Armazene o ID do cliente
       descricao: problemaCliente,
       responsavel: autorServico,
-      observacoes: observacoes,
-      autorServico: autorServico,
+      observacoes,
+      autorServico,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
-      modeloAparelho: modeloAparelho,
-      marcaAparelho: marcaAparelho,
+      modeloAparelho,
+      marcaAparelho,
       problemaRelatado: problemaCliente,
-      solucaoInicial: solucaoInicial,
-      valorTotal: valorTotal,
+      solucaoInicial,
+      valorTotal,
     });
 
-    console.log('Serviço a ser salvo:', novoServico); // Log para verificar o serviço antes de salvar
-
     await novoServico.save();
-
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
   } catch (error) {
-    console.error('Erro ao criar serviço:', error); // Log detalhado do erro
+    console.error('Erro ao criar serviço:', error);
     next(error);
   }
 });
@@ -346,7 +351,52 @@ app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
+app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    
+    // Verificar se o cliente existe
+    const cliente = await Cliente.findById(clienteId);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    }
 
+    // Buscar orçamentos relacionados a este cliente
+    // (Assumindo que seu modelo Servico tem um campo clienteId)
+    const orcamentos = await Servico.find({ clienteId: clienteId });
+    
+    res.status(200).json(orcamentos);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erro ao buscar orçamentos do cliente', 
+      error: error.message 
+    });
+  }
+});
+
+// Rota para obter serviços de um cliente específico
+app.get('/api/clientes/:id/servicos', authenticateToken, async (req, res) => {
+  try {
+    const clienteId = req.params.id;
+    
+    // Verificar se o cliente existe
+    const cliente = await Cliente.findById(clienteId);
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    }
+
+    // Buscar serviços relacionados a este cliente
+    // (Assumindo que seu modelo Servico tem um campo clienteId)
+    const servicos = await Servico.find({ clienteId: clienteId });
+    
+    res.status(200).json(servicos);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Erro ao buscar serviços do cliente', 
+      error: error.message 
+    });
+  }
+});
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
