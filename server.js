@@ -346,53 +346,7 @@ app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
-app.get('/api/servicos/por-cliente', authenticateToken, async (req, res, next) => {
-  try {
-    const clienteNome = req.query.cliente;
 
-    if (!clienteNome) {
-      return res.status(400).json({ message: 'O nome do cliente é obrigatório na query string' });
-    }
-
-    // Busca serviços onde o campo 'cliente' ou 'nomeCompletoCliente' contenha o nome (case insensitive)
-    const servicos = await Servico.find({
-      $or: [
-        { cliente: { $regex: clienteNome, $options: 'i' } },
-        { nomeCompletoCliente: { $regex: clienteNome, $options: 'i' } }
-      ]
-    });
-
-    if (!servicos || servicos.length === 0) {
-      return res.status(404).json({ message: 'Nenhum serviço encontrado para este cliente' });
-    }
-
-    return res.status(200).json(servicos);
-
-  } catch (error) {
-    console.error('Erro ao buscar serviços por cliente:', error);
-    next(error);
-  }
-});
-
-app.get('/api/clientes/:id/orcamentos', async (req, res) => {
-  try {
-    const orcamentos = await Orcamento.find({ clienteId: req.params.id });
-    if (!orcamentos.length) return res.status(404).json({ message: 'Nenhum orçamento encontrado' });
-    res.json(orcamentos);
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao buscar orçamentos' });
-  }
-});
-
-app.get('/api/clientes/:id/servicos', async (req, res) => {
-  try {
-    const servicos = await Servico.find({ clienteId: req.params.id });
-    if (!servicos.length) return res.status(404).json({ message: 'Nenhum serviço encontrado' });
-    res.json(servicos);
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao buscar serviços' });
-  }
-});
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
