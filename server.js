@@ -108,6 +108,18 @@ app.post('/api/signup', [
   }
 });
 
+// Rota para buscar todos os usuários
+app.get('/api/users', async (req, res) => {
+  try {
+    const users = await User.find(); // buscar todos os usuários no banco de dados
+    res.status(200).json(users);
+  } catch (error) {
+    console.error('Erro ao buscar usuários:', error);
+    res.status(500).json({ message: 'Erro ao buscar usuários' });
+  }
+});
+
+
 // Rota para login do usuário
 app.post('/api/login', [
   body('username').notEmpty().withMessage('Nome de usuário é obrigatório'),
