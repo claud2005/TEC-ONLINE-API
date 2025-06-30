@@ -77,6 +77,8 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+app.use(express.json());  // Middleware para interpretar JSON no corpo da requisição
+
 // Rota para registrar um novo utilizador
 app.post('/api/signup', [
   body('fullName').notEmpty().withMessage('Nome completo é obrigatório'),
