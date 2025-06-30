@@ -346,7 +346,33 @@ app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
   }
 });
 
+app.get('/api/servicos/por-cliente', authenticateToken, async (req, res, next) => {
+  try {
+    const clienteNome = req.query.cliente;
 
+    if (!clienteNome) {
+      return res.status(400).json({ message: 'O nome do cliente é obrigatório na query string' });
+    }
+
+    // Busca serviços onde o campo 'cliente' ou 'nomeCompletoCliente' contenha o nome (case insensitive)
+    const servicos = await Servico.find({
+      $or: [
+        { cliente: { $regex: clienteNome, $options: 'i' } },
+        { nomeCompletoCliente: { $regex: clienteNome, $options: 'i' } }
+      ]
+    });
+
+    if (!servicos || servicos.length === 0) {
+      return res.status(404).json({ message: 'Nenhum serviço encontrado para este cliente' });
+    }
+
+    return res.status(200).json(servicos);
+
+  } catch (error) {
+    console.error('Erro ao buscar serviços por cliente:', error);
+    next(error);
+  }
+});
 
 const transporter = nodemailer.createTransport({
   service: 'gmail',
