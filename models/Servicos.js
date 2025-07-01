@@ -22,10 +22,6 @@ const servicoSchema = new mongoose.Schema({
     type: String, 
     required: true 
   },
-  descricao: { 
-    type: String, 
-    required: true 
-  },
   responsavel: { 
     type: String, 
     required: true 

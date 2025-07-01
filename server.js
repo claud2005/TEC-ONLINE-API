@@ -276,8 +276,8 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
 
     const {
       dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
-      nomeCliente, telefoneContato, marcaAparelho, modeloAparelho, 
-      problemaCliente, solucaoInicial, valorTotal, observacoes
+      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho, 
+      problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
     // Validação adicional para clienteId
@@ -296,17 +296,16 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       dataServico,
       horaServico,
       status,
-      cliente: nomeCliente,
+      cliente,
       clienteId, // Armazene o ID do cliente
-      descricao: problemaCliente,
       responsavel: autorServico,
       observacoes,
       autorServico,
-      nomeCompletoCliente: nomeCliente,
-      contatoCliente: telefoneContato,
+      nomeCompletoCliente,
+      contatoCliente,
       modeloAparelho,
       marcaAparelho,
-      problemaRelatado: problemaCliente,
+      problemaRelatado,
       solucaoInicial,
       valorTotal,
     });
@@ -432,26 +431,23 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
 });
 
 // Rota para obter serviços de um cliente específico
-app.get('/api/clientes/:id/servicos', authenticateToken, async (req, res) => {
+app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
     const clienteId = req.params.id;
-    
-    // Verificar se o cliente existe
+    console.log('ID recebido:', clienteId);
+
+    // validar id antes de buscar
+    if (!mongoose.Types.ObjectId.isValid(clienteId)) {
+      return res.status(400).json({ message: 'ID do cliente inválido' });
+    }
+
     const cliente = await Cliente.findById(clienteId);
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
-
-    // Buscar serviços relacionados a este cliente
-    // (Assumindo que seu modelo Servico tem um campo clienteId)
-    const servicos = await Servico.find({ clienteId: clienteId });
-    
-    res.status(200).json(servicos);
+    res.status(200).json(cliente);
   } catch (error) {
-    res.status(500).json({ 
-      message: 'Erro ao buscar serviços do cliente', 
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
   }
 });
 
@@ -606,31 +602,69 @@ app.get('/api/verify-token/:token', async (req, res) => {
 
 
 // Rota para criação de cliente
+// Rota para criação de cliente
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
-    const { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente } = req.body;
+    const {
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente,
+      numeroCliente
+    } = req.body;
 
-    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
+    // Validação simples
+    if (!nome || !contacto) {
+      return res.status(400).json({ message: 'Nome e contacto são obrigatórios' });
+    }
+
+    // Verificar se já existe cliente com o mesmo email ou número de cliente
+    const existingCliente = await Cliente.findOne({
+      $or: [
+        { email: email },
+        { numeroCliente: numeroCliente }
+      ]
+    });
+
+    if (existingCliente) {
+      return res.status(400).json({ message: 'Já existe um cliente com este e-mail ou número de cliente' });
     }
 
     const novoCliente = new Cliente({
-      nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente,
+      numeroCliente
     });
 
     await novoCliente.save();
-    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
+
+    return res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
+    console.error('Erro ao criar cliente:', error);
+    res.status(500).json({ message: 'Erro interno ao criar cliente', error: error.message });
   }
 });
-
-
 
 app.get('/api/clientes', authenticateToken, async (req, res) => {
   try {
     const clientes = await Cliente.find();
-    res.json(clientes);
+    
+    // Mapear para converter _id em id
+    const clientesFormatados = clientes.map(c => {
+      const obj = c.toObject();  // transforma documento mongoose em objeto JS simples
+      obj.id = obj._id;
+      delete obj._id;
+      return obj;
+    });
+    res.json(clientesFormatados);
   } catch (err) {
     res.status(500).json({ message: 'Erro ao buscar clientes', error: err.message });
   }
@@ -704,7 +738,11 @@ app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    res.status(200).json(cliente);
+    const clienteObj = cliente.toObject();
+    clienteObj.id = clienteObj._id;
+    delete clienteObj._id;
+
+    res.status(200).json(clienteObj);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
   }
