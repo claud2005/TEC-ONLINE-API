@@ -236,8 +236,8 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
 
     const {
       dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
-      nomeCliente, telefoneContato, marcaAparelho, modeloAparelho, 
-      problemaCliente, solucaoInicial, valorTotal, observacoes
+      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho, 
+      problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
     // Validação adicional para clienteId
