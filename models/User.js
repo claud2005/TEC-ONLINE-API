@@ -33,20 +33,23 @@ const userSchema = new mongoose.Schema({
     required: [true, 'Senha é obrigatória'],
     minlength: [6, 'Senha deve ter pelo menos 6 caracteres'],
   },
-
-  telefone: {  // <-- Novo campo telefone adicionado
+  telefone: {
     type: String,
-    required: false,        // Altere para true se quiser tornar obrigatório
+    required: false,
     trim: true,
-    match: [/^\+?[0-9\s\-]{7,15}$/, 'Número de telefone inválido'],  // Exemplo de regex simples para números
+    match: [/^\+?[0-9\s\-]{7,15}$/, 'Número de telefone inválido'],
     default: '',
   },
-
+  role: {
+    type: String,
+    enum: ['admin', 'user'],
+    default: 'user',
+  },
   profilePicture: {
     type: String,
     default: '',
   },
-  bio: {  // Adicionando o campo bio, se necessário
+  bio: {
     type: String,
     default: '',
   },
@@ -58,9 +61,7 @@ const userSchema = new mongoose.Schema({
   resetPasswordExpires: Date,
 });
 
-// Restante do código permanece igual
-// Criptografar senha, métodos, etc.
-
+// Middleware para criptografar senha
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
 
@@ -73,6 +74,7 @@ userSchema.pre('save', async function (next) {
   }
 });
 
+// Método para comparar senhas
 userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     const isMatch = await bcrypt.compare(candidatePassword, this.password);
@@ -82,47 +84,38 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
   }
 };
 
+// Geração de token JWT
 userSchema.methods.generateAuthToken = function () {
   const token = jwt.sign(
-    { userId: this._id },
+    { userId: this._id, role: this.role },
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '1h' }
   );
   return token;
 };
 
+// Atualizar perfil
 userSchema.methods.updateProfile = async function (updatedData) {
-  if (updatedData.fullName) {
-    this.fullName = updatedData.fullName;
-  }
-
-  if (updatedData.username) {
-    this.username = updatedData.username;
-  }
-
-  if (updatedData.bio) {
-    this.bio = updatedData.bio;
-  }
-
-  if (updatedData.profilePicture) {
-    this.profilePicture = updatedData.profilePicture;
-  }
-
-  if (updatedData.telefone) {  // Atualizar telefone também
-    this.telefone = updatedData.telefone;
-  }
+  if (updatedData.fullName) this.fullName = updatedData.fullName;
+  if (updatedData.username) this.username = updatedData.username;
+  if (updatedData.bio) this.bio = updatedData.bio;
+  if (updatedData.profilePicture) this.profilePicture = updatedData.profilePicture;
+  if (updatedData.telefone) this.telefone = updatedData.telefone;
+  if (updatedData.role) this.role = updatedData.role; // <-- Permite atualizar o papel (admin/user)
 
   await this.save();
   return this;
 };
 
+// Gerar token de redefinição de senha
 userSchema.methods.generateResetPasswordToken = function () {
-  const resetToken = crypto.randomBytes(32).toString('hex'); // Gera um token de reset único
+  const resetToken = crypto.randomBytes(32).toString('hex');
   this.resetPasswordToken = resetToken;
-  this.resetPasswordExpires = Date.now() + 3600000; // Expira em 1 hora
+  this.resetPasswordExpires = Date.now() + 3600000; // 1h
   return resetToken;
 };
 
+// Validar token de reset
 userSchema.methods.isResetPasswordTokenValid = function (token) {
   return this.resetPasswordToken === token && this.resetPasswordExpires > Date.now();
 };

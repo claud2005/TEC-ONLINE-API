@@ -86,8 +86,9 @@ app.post('/api/signup', [
   body('email').isEmail().withMessage('E-mail inválido'),
   body('password').isLength({ min: 6 }).withMessage('A senha deve ter pelo menos 6 caracteres'),
   body('telefone').optional().isString().withMessage('Telefone inválido').trim(),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Tipo de utilizador inválido'),
 ], async (req, res, next) => {
-  console.log('req.body:', req.body);  // Log para debugging
+  console.log('req.body:', req.body);
 
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -95,35 +96,32 @@ app.post('/api/signup', [
   }
 
   try {
-    const { fullName, username, email, password, telefone } = req.body;
+    const { fullName, username, email, password, telefone, role = 'user' } = req.body;
 
-    // Verificar se o usuário ou o email já estão registrados
     const existingUser = await User.findOne({ $or: [{ email }, { username }] });
     if (existingUser) {
       return res.status(400).json({ message: 'Usuário ou e-mail já cadastrados' });
     }
 
-    // Criar um novo usuário e salvar no banco de dados
-    const newUser = new User({ fullName, username, email, password, telefone });
+    const newUser = new User({ fullName, username, email, password, telefone, role });
     await newUser.save();
 
     return res.status(201).json({ message: 'Usuário registrado com sucesso!' });
   } catch (error) {
-    next(error); // Passa o erro para o middleware de tratamento de erros
+    next(error);
   }
 });
 
 // Rota para buscar todos os usuários
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await User.find(); // buscar todos os usuários no banco de dados
+    const users = await User.find();
     res.status(200).json(users);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
     res.status(500).json({ message: 'Erro ao buscar usuários' });
   }
 });
-
 
 // Rota para atualizar um utilizador existente
 app.put('/api/users/:id', [
@@ -132,6 +130,7 @@ app.put('/api/users/:id', [
   body('email').isEmail().withMessage('E-mail inválido'),
   body('telefone').optional().isString().withMessage('Telefone inválido').trim(),
   body('password').optional().isLength({ min: 6 }).withMessage('A senha deve ter pelo menos 6 caracteres'),
+  body('role').optional().isIn(['user', 'admin']).withMessage('Tipo de utilizador inválido'),
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -142,8 +141,7 @@ app.put('/api/users/:id', [
     const userId = req.params.id;
     const updateData = { ...req.body };
 
-    // Se a senha estiver vazia, remove do objeto para não sobrescrever com string vazia
-    if (!updateData.password) {
+    if (!updateData.password || updateData.password.trim() === '') {
       delete updateData.password;
     }
 
@@ -163,12 +161,10 @@ app.put('/api/users/:id', [
   }
 });
 
-
 // Rota para eliminar um utilizador
 app.delete('/api/users/:id', async (req, res) => {
   try {
     const userId = req.params.id;
-
     const deletedUser = await User.findByIdAndDelete(userId);
 
     if (!deletedUser) {
@@ -181,6 +177,8 @@ app.delete('/api/users/:id', async (req, res) => {
     res.status(500).json({ message: 'Erro ao excluir utilizador' });
   }
 });
+
+
 
 
 
