@@ -125,6 +125,46 @@ app.get('/api/users', async (req, res) => {
 });
 
 
+// Rota para atualizar um utilizador existente
+app.put('/api/users/:id', [
+  body('fullName').notEmpty().withMessage('Nome completo é obrigatório'),
+  body('username').notEmpty().withMessage('Nome de usuário é obrigatório'),
+  body('email').isEmail().withMessage('E-mail inválido'),
+  body('telefone').optional().isString().withMessage('Telefone inválido').trim(),
+  body('password').optional().isLength({ min: 6 }).withMessage('A senha deve ter pelo menos 6 caracteres'),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const userId = req.params.id;
+    const updateData = { ...req.body };
+
+    // Se a senha estiver vazia, remove do objeto para não sobrescrever com string vazia
+    if (!updateData.password) {
+      delete updateData.password;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
+      new: true,
+      runValidators: true,
+    });
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    }
+
+    res.status(200).json({ message: 'Utilizador atualizado com sucesso!', user: updatedUser });
+  } catch (error) {
+    console.error('Erro ao atualizar utilizador:', error);
+    res.status(500).json({ message: 'Erro ao atualizar utilizador' });
+  }
+});
+
+
+
 // Rota para login do usuário
 app.post('/api/login', [
   body('username').notEmpty().withMessage('Nome de usuário é obrigatório'),
