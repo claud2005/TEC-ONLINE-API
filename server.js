@@ -274,7 +274,6 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     await novoServico.save();
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
   } catch (error) {
-    return res.status(500).json({ message: error.message });
     console.error('Erro ao criar serviço:', error);
     next(error);
   }
