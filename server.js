@@ -274,6 +274,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     await novoServico.save();
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
   } catch (error) {
+    return res.status(500).json({ message: error.message });
     console.error('Erro ao criar serviço:', error);
     next(error);
   }
@@ -563,26 +564,56 @@ app.get('/api/verify-token/:token', async (req, res) => {
 
 
 // Rota para criação de cliente
+// Rota para criação de cliente
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
-    const { nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente } = req.body;
+    const {
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente,
+      numeroCliente
+    } = req.body;
 
-    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
+    // Validação simples
+    if (!nome || !contacto) {
+      return res.status(400).json({ message: 'Nome e contacto são obrigatórios' });
+    }
+
+    // Verificar se já existe cliente com o mesmo email ou número de cliente
+    const existingCliente = await Cliente.findOne({
+      $or: [
+        { email: email },
+        { numeroCliente: numeroCliente }
+      ]
+    });
+
+    if (existingCliente) {
+      return res.status(400).json({ message: 'Já existe um cliente com este e-mail ou número de cliente' });
     }
 
     const novoCliente = new Cliente({
-      nome, morada, codigoPostal, contacto, email, contribuinte, codigoCliente, numeroCliente
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente,
+      numeroCliente
     });
 
     await novoCliente.save();
-    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
+
+    return res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
+    console.error('Erro ao criar cliente:', error);
+    res.status(500).json({ message: 'Erro interno ao criar cliente', error: error.message });
   }
 });
-
-
 
 app.get('/api/clientes', authenticateToken, async (req, res) => {
   try {
@@ -595,7 +626,6 @@ app.get('/api/clientes', authenticateToken, async (req, res) => {
       delete obj._id;
       return obj;
     });
-
     res.json(clientesFormatados);
   } catch (err) {
     res.status(500).json({ message: 'Erro ao buscar clientes', error: err.message });
