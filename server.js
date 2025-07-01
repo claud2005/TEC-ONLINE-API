@@ -392,26 +392,23 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
 });
 
 // Rota para obter serviços de um cliente específico
-app.get('/api/clientes/:id/servicos', authenticateToken, async (req, res) => {
+app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
     const clienteId = req.params.id;
-    
-    // Verificar se o cliente existe
+    console.log('ID recebido:', clienteId);
+
+    // validar id antes de buscar
+    if (!mongoose.Types.ObjectId.isValid(clienteId)) {
+      return res.status(400).json({ message: 'ID do cliente inválido' });
+    }
+
     const cliente = await Cliente.findById(clienteId);
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
-
-    // Buscar serviços relacionados a este cliente
-    // (Assumindo que seu modelo Servico tem um campo clienteId)
-    const servicos = await Servico.find({ clienteId: clienteId });
-    
-    res.status(200).json(servicos);
+    res.status(200).json(cliente);
   } catch (error) {
-    res.status(500).json({ 
-      message: 'Erro ao buscar serviços do cliente', 
-      error: error.message 
-    });
+    res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
   }
 });
 
