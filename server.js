@@ -587,7 +587,16 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
 app.get('/api/clientes', authenticateToken, async (req, res) => {
   try {
     const clientes = await Cliente.find();
-    res.json(clientes);
+    
+    // Mapear para converter _id em id
+    const clientesFormatados = clientes.map(c => {
+      const obj = c.toObject();  // transforma documento mongoose em objeto JS simples
+      obj.id = obj._id;
+      delete obj._id;
+      return obj;
+    });
+
+    res.json(clientesFormatados);
   } catch (err) {
     res.status(500).json({ message: 'Erro ao buscar clientes', error: err.message });
   }
@@ -661,7 +670,11 @@ app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    res.status(200).json(cliente);
+    const clienteObj = cliente.toObject();
+    clienteObj.id = clienteObj._id;
+    delete clienteObj._id;
+
+    res.status(200).json(clienteObj);
   } catch (error) {
     res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
   }
