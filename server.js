@@ -235,7 +235,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     console.log('Dados recebidos:', req.body);
 
     const {
-      dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
+      data_servico, hora_servico, status, autorServico, clienteId, // Adicione clienteId aqui
       nomeCliente, telefoneContato, marcaAparelho, modeloAparelho, 
       problemaCliente, solucaoInicial, valorTotal, observacoes
     } = req.body;
