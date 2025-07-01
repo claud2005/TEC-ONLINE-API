@@ -164,6 +164,26 @@ app.put('/api/users/:id', [
 });
 
 
+// Rota para eliminar um utilizador
+app.delete('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+
+    const deletedUser = await User.findByIdAndDelete(userId);
+
+    if (!deletedUser) {
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    }
+
+    res.status(200).json({ message: 'Utilizador excluído com sucesso!' });
+  } catch (error) {
+    console.error('Erro ao excluir utilizador:', error);
+    res.status(500).json({ message: 'Erro ao excluir utilizador' });
+  }
+});
+
+
+
 
 // Rota para login do usuário
 app.post('/api/login', [
