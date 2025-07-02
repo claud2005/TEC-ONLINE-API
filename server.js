@@ -6,11 +6,9 @@ const dotenv = require('dotenv');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator'); // Para validação de dados
-const multer = require('multer'); // Importando o multer para manipulação de arquivos
+const multer = require('multer'); // Para uploads (não usado aqui, mas configurado)
 const path = require('path');
-const fs = require('fs'); // Importando o fs para verificar e criar a pasta
-const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const fs = require('fs'); // Para criar pasta uploads, se não existir
 dotenv.config();
 
 const User = require('./models/User');
@@ -23,9 +21,15 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 3000;
 
+// Criar pasta uploads se não existir
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
+
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use(express.json());  // Também para interpretar JSON no corpo da requisição
 
 // Conexão com o MongoDB
 mongoose.connect(process.env.MONGO_URI || 'mongodb+srv://TECONLINE:claudio654321@cluster0.1mpg6.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0', {
@@ -45,7 +49,6 @@ const errorHandler = (err, req, res, next) => {
   console.error('Erro:', err);
   res.status(500).json({ message: 'Erro interno no servidor', error: err.message });
 };
-
 app.use(errorHandler);
 
 // Middleware para autenticar o token JWT
@@ -64,7 +67,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Configuração do multer para armazenamento de imagem
+// Configuração do multer para armazenamento de imagem (não obrigatório aqui)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/'); // Diretório para armazenar as imagens
@@ -74,10 +77,7 @@ const storage = multer.diskStorage({
     cb(null, Date.now() + ext); // Definir um nome único para o arquivo
   },
 });
-
 const upload = multer({ storage });
-
-app.use(express.json());  // Middleware para interpretar JSON no corpo da requisição
 
 // Rota para registrar um novo utilizador
 app.post('/api/signup', [
@@ -103,7 +103,10 @@ app.post('/api/signup', [
       return res.status(400).json({ message: 'Usuário ou e-mail já cadastrados' });
     }
 
-    const newUser = new User({ fullName, username, email, password, telefone, role });
+    // Hash da password antes de guardar
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({ fullName, username, email, password: hashedPassword, telefone, role });
     await newUser.save();
 
     return res.status(201).json({ message: 'Usuário registrado com sucesso!' });
@@ -141,8 +144,12 @@ app.put('/api/users/:id', [
     const userId = req.params.id;
     const updateData = { ...req.body };
 
+    // Se password vazia, elimina para não atualizar
     if (!updateData.password || updateData.password.trim() === '') {
       delete updateData.password;
+    } else {
+      // Se password foi enviada, faz hash
+      updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
     const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
@@ -177,9 +184,6 @@ app.delete('/api/users/:id', async (req, res) => {
     res.status(500).json({ message: 'Erro ao excluir utilizador' });
   }
 });
-
-
-
 
 
 
