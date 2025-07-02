@@ -473,18 +473,39 @@ app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
     const clienteId = req.params.id;
     console.log('ID recebido:', clienteId);
 
-    // validar id antes de buscar
+    // Verificação mais robusta do ID
     if (!mongoose.Types.ObjectId.isValid(clienteId)) {
+      console.log('ID inválido:', clienteId);
       return res.status(400).json({ message: 'ID do cliente inválido' });
     }
 
-    const cliente = await Cliente.findById(clienteId);
+    // Converter para ObjectId
+    const objectId = new mongoose.Types.ObjectId(clienteId);
+    
+    console.log('Buscando cliente com ID:', objectId);
+    const cliente = await Cliente.findById(objectId);
+
     if (!cliente) {
+      console.log('Cliente não encontrado para ID:', objectId);
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
-    res.status(200).json(cliente);
+
+    // Log para debug
+    console.log('Clientes na coleção:', await Cliente.countDocuments({}));
+    console.log('Exemplo de _id:', (await Cliente.findOne({})?._id));
+
+    const clienteObj = cliente.toObject();
+    clienteObj.id = clienteObj._id.toString(); // Converter para string
+    delete clienteObj._id;
+
+    res.status(200).json(clienteObj);
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
+    console.error('Erro detalhado:', error);
+    res.status(500).json({ 
+      message: 'Erro ao buscar cliente',
+      error: error.message,
+      stack: error.stack // Apenas para desenvolvimento
+    });
   }
 });
 
