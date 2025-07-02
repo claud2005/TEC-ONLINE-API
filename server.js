@@ -199,7 +199,7 @@ app.get('/api/users/:id', async (req, res) => {
 
 
 // Rota para alterar senha
-app.put('/api/users/:id/password', verifyToken, async (req, res) => {
+app.put('/api/users/:id/esqueceu-password', verifyToken, async (req, res) => {
   try {
     const userId = req.params.id;
     const { password } = req.body;
