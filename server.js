@@ -206,17 +206,21 @@ router.put('/:id/password', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Senha deve ter pelo menos 6 caracteres.' });
     }
 
-    // Verifica se o userId da rota bate com o do token (segurança)
-    if (req.user.id !== userId) {
+    if (!req.user || req.user.id.toString() !== userId.toString()) {
       return res.status(403).json({ message: 'Não autorizado a alterar esta senha.' });
     }
 
-    // Hash da nova senha
+    // Buscar usuário antes
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'Utilizador não encontrado.' });
+    }
+
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Atualiza no banco
-    await User.findByIdAndUpdate(userId, { password: hashedPassword });
+    user.password = hashedPassword;
+    await user.save();
 
     return res.status(200).json({ message: 'Senha atualizada com sucesso.' });
   } catch (error) {
@@ -224,6 +228,7 @@ router.put('/:id/password', verifyToken, async (req, res) => {
     return res.status(500).json({ message: 'Erro interno no servidor.' });
   }
 });
+
 
 
 // Rota para login do usuário
