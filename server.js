@@ -204,11 +204,14 @@ app.put('/api/users/:id/esqueceu-password', verifyToken, async (req, res) => {
     const userId = req.params.id;
     const { password } = req.body;
 
+    console.log('[REQ] Alterar senha do ID:', userId);
+    console.log('[REQ] Token user:', req.user.id);
+    console.log('[REQ] Nova senha:', password);
+
     if (!password || password.trim().length < 6) {
       return res.status(400).json({ message: 'Senha deve ter pelo menos 6 caracteres.' });
     }
 
-    // Verifica se o utilizador é o mesmo do token
     if (req.user.id !== userId) {
       return res.status(403).json({ message: 'Não autorizado a alterar esta senha.' });
     }
@@ -216,6 +219,8 @@ app.put('/api/users/:id/esqueceu-password', verifyToken, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await User.findByIdAndUpdate(userId, { password: hashedPassword });
+
+    console.log('[SUCESSO] Senha atualizada para o utilizador', userId);
 
     return res.status(200).json({ message: 'Senha atualizada com sucesso.' });
   } catch (error) {
