@@ -178,7 +178,22 @@ app.delete('/api/users/:id', async (req, res) => {
   }
 });
 
+// Rota para buscar 1 utilizador pelo ID
+app.get('/api/users/:id', async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const user = await User.findById(userId).select('-password'); // Excluir senha na resposta
 
+    if (!user) {
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    }
+
+    res.status(200).json(user);
+  } catch (error) {
+    console.error('Erro ao buscar utilizador:', error);
+    res.status(500).json({ message: 'Erro ao buscar utilizador' });
+  }
+});
 
 
 
