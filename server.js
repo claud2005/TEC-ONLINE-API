@@ -198,6 +198,31 @@ app.get('/api/users/:id', async (req, res) => {
 });
 
 
+// Rota para alterar senha
+app.put('/api/users/:id/password', verifyToken, async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { password } = req.body;
+
+    if (!password || password.trim().length < 6) {
+      return res.status(400).json({ message: 'Senha deve ter pelo menos 6 caracteres.' });
+    }
+
+    // Verifica se o utilizador é o mesmo do token
+    if (req.user.id !== userId) {
+      return res.status(403).json({ message: 'Não autorizado a alterar esta senha.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await User.findByIdAndUpdate(userId, { password: hashedPassword });
+
+    return res.status(200).json({ message: 'Senha atualizada com sucesso.' });
+  } catch (error) {
+    console.error('Erro ao alterar senha:', error);
+    return res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
+});
 
 
 // Rota para login do usuário
