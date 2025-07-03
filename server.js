@@ -198,6 +198,28 @@ app.get('/api/users/:id', async (req, res) => {
 });
 
 
+// ✅ ROTA: Admin altera senha de qualquer utilizador
+app.put('/api/users/:id/esqueceu-password', async (req, res) => {
+  const userId = req.params.id;
+  const { password } = req.body;
+
+  try {
+    if (!password || password.trim().length < 6) {
+      return res.status(400).json({ message: 'A nova senha deve ter pelo menos 6 caracteres.' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Utilizador não encontrado.' });
+
+    user.password = password; // 🔐 Será encriptado no pre('save')
+    await user.save();
+
+    res.status(200).json({ message: 'Senha atualizada com sucesso.' });
+  } catch (err) {
+    console.error('Erro ao alterar senha:', err);
+    res.status(500).json({ message: 'Erro ao alterar senha.' });
+  }
+});
 
 
 
