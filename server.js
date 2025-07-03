@@ -470,22 +470,27 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
 // Rota para obter serviços de um cliente específico
 app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
-    console.log('Recebida requisição para cliente ID:', req.params.id);
-    
-    const cliente = await Cliente.findById(req.params.id).lean();
-    console.log('Resultado da query:', cliente);
-
-    if (!cliente) {
-      console.log('Documentos na coleção:', await Cliente.countDocuments({}));
-      return res.status(404).json({ message: 'Cliente não encontrado' });
+    // Verifica se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ message: 'ID inválido' });
     }
 
-    res.json({ ...cliente, id: cliente._id.toString() });
+    const cliente = await Cliente.findById(req.params.id);
     
+    if (!cliente) {
+      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    }
+
+    // Retorna o cliente formatado
+    const clienteObj = cliente.toObject();
+    clienteObj.id = clienteObj._id;
+    delete clienteObj._id;
+
+    res.status(200).json(clienteObj);
   } catch (error) {
-    console.error('Erro completo:', error);
+    console.error('Erro ao buscar cliente:', error);
     res.status(500).json({ 
-      message: 'Erro no servidor',
+      message: 'Erro ao buscar cliente',
       error: error.message 
     });
   }
