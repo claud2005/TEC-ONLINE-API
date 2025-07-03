@@ -470,41 +470,23 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
 // Rota para obter serviços de um cliente específico
 app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
-    const clienteId = req.params.id;
-    console.log('ID recebido:', clienteId);
-
-    // Verificação mais robusta do ID
-    if (!mongoose.Types.ObjectId.isValid(clienteId)) {
-      console.log('ID inválido:', clienteId);
-      return res.status(400).json({ message: 'ID do cliente inválido' });
-    }
-
-    // Converter para ObjectId
-    const objectId = new mongoose.Types.ObjectId(clienteId);
+    console.log('Recebida requisição para cliente ID:', req.params.id);
     
-    console.log('Buscando cliente com ID:', objectId);
-    const cliente = await Cliente.findById(objectId);
+    const cliente = await Cliente.findById(req.params.id).lean();
+    console.log('Resultado da query:', cliente);
 
     if (!cliente) {
-      console.log('Cliente não encontrado para ID:', objectId);
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+      console.log('Documentos na coleção:', await Cliente.countDocuments({}));
+      return res.status(404).json({ message: 'Cliente não encontrado' });
     }
 
-    // Log para debug
-    console.log('Clientes na coleção:', await Cliente.countDocuments({}));
-    console.log('Exemplo de _id:', (await Cliente.findOne({})?._id));
-
-    const clienteObj = cliente.toObject();
-    clienteObj.id = clienteObj._id.toString(); // Converter para string
-    delete clienteObj._id;
-
-    res.status(200).json(clienteObj);
+    res.json({ ...cliente, id: cliente._id.toString() });
+    
   } catch (error) {
-    console.error('Erro detalhado:', error);
+    console.error('Erro completo:', error);
     res.status(500).json({ 
-      message: 'Erro ao buscar cliente',
-      error: error.message,
-      stack: error.stack // Apenas para desenvolvimento
+      message: 'Erro no servidor',
+      error: error.message 
     });
   }
 });
