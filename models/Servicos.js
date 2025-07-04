@@ -19,7 +19,8 @@ const servicoSchema = new mongoose.Schema({
     required: true 
   },
   cliente: { 
-    type: String,  // armazena ID do cliente
+    type: mongoose.Schema.Types.ObjectId, // Alterado para ObjectId
+    ref: 'Cliente', // Referência ao modelo Cliente
     required: true 
   },
   responsavel: { 

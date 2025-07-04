@@ -329,37 +329,34 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
 });
 
 // Rota para criar um novo serviço
-app.post('/api/servicos', authenticateToken, async (req, res, next) => {
+app.post('/api/servicos', authenticateToken, async (req, res) => {
   try {
-    console.log('Dados recebidos:', req.body);
-
     const {
       dataServico, horaServico, status, autorServico, clienteId,
       nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho,
       problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
-    // Usa clienteId ou cliente para identificar o cliente
-    const idCliente = clienteId || cliente;
-
-    if (!idCliente) {
-      return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
+    // Validação do ID do cliente
+    if (!mongoose.Types.ObjectId.isValid(clienteId)) {
+      return res.status(400).json({ message: 'ID do cliente inválido' });
     }
 
-    // Verifica se o cliente existe
-    const clienteDoc = await Cliente.findById(idCliente);
-    if (!clienteDoc) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    // Verifica se cliente existe
+    const clienteExiste = await Cliente.findById(clienteId);
+    if (!clienteExiste) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
     }
 
-    // Cria novo serviço
+    // Gera número único para o serviço
+    const numeroServico = new Date().getTime().toString();
+
     const novoServico = new Servico({
-      numero: new Date().getTime().toString(),
+      numero: numeroServico,
       dataServico,
       horaServico,
       status,
-      cliente,
-      clienteID,
+      cliente: clienteId, // Agora usando ObjectId
       responsavel: autorServico,
       observacoes,
       autorServico,
@@ -369,14 +366,18 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       marcaAparelho,
       problemaRelatado,
       solucaoInicial,
-      valorTotal,
+      valorTotal: Number(valorTotal) // Garante que é número
     });
 
     await novoServico.save();
-    return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
+    res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
+
   } catch (error) {
     console.error('Erro ao criar serviço:', error);
-    next(error);
+    res.status(500).json({ 
+      message: 'Erro ao criar serviço',
+      error: error.message // Mostra o erro completo
+    });
   }
 });
 
