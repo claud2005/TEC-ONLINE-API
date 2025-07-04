@@ -334,40 +334,42 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     console.log('Dados recebidos:', req.body);
 
     const {
-      dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
+      dataServico, horaServico, status, autorServico,
+      clienteId, cliente, // pegar ambos
       nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho, 
       problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
-    // Validação adicional para clienteId
-    if (!clienteId) {
+    // Use clienteId ou cliente
+    const idCliente = clienteId || cliente;
+
+    if (!idCliente) {
       return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
     }
 
     // Verificar se o cliente existe
-    const cliente = await Cliente.findById(clienteId);
-    if (!cliente) {
+    const clienteDoc = await Cliente.findById(idCliente);
+    if (!clienteDoc) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-const novoServico = new Servico({
-  numero: new Date().getTime().toString(),
-  dataServico,
-  horaServico,
-  status,
-  cliente: clienteId,   // <- aqui só o ID (string)
-  responsavel: autorServico,
-  observacoes,
-  autorServico,
-  nomeCompletoCliente,
-  contatoCliente,
-  modeloAparelho,
-  marcaAparelho,
-  problemaRelatado,
-  solucaoInicial,
-  valorTotal,
-});
-
+    const novoServico = new Servico({
+      numero: new Date().getTime().toString(),
+      dataServico,
+      horaServico,
+      status,
+      cliente: idCliente,
+      responsavel: autorServico,
+      observacoes,
+      autorServico,
+      nomeCompletoCliente,
+      contatoCliente,
+      modeloAparelho,
+      marcaAparelho,
+      problemaRelatado,
+      solucaoInicial,
+      valorTotal,
+    });
 
     await novoServico.save();
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
@@ -376,6 +378,7 @@ const novoServico = new Servico({
     next(error);
   }
 });
+
 
 // Rota para listar todos os serviços
 app.get('/api/servicos', authenticateToken, async (req, res, next) => {
