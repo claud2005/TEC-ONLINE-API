@@ -476,9 +476,8 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    // Buscar orçamentos relacionados a este cliente
-    // (Assumindo que seu modelo Servico tem um campo clienteId)
-    const orcamentos = await Servico.find({ clienteId: clienteId });
+    // Buscar orçamentos relacionados ao cliente
+    const orcamentos = await Servico.find({ cliente: clienteId });
     
     res.status(200).json(orcamentos);
   } catch (error) {
@@ -667,8 +666,6 @@ app.get('/api/verify-token/:token', async (req, res) => {
   }
 });
 
-
-// Rota para criação de cliente
 // Rota para criação de cliente
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
