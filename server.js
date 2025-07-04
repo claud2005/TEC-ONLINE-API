@@ -334,25 +334,36 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     console.log('Dados recebidos:', req.body);
 
     const {
-      dataServico, horaServico, status, autorServico,
-      clienteId, cliente, // pegar ambos
-      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho, 
-      problemaRelatado, solucaoInicial, valorTotal, observacoes
+      dataServico,
+      horaServico,
+      status,
+      autorServico,
+      clienteId,
+      cliente, // pode vir clienteId ou cliente
+      nomeCompletoCliente,
+      contatoCliente,
+      marcaAparelho,
+      modeloAparelho,
+      problemaRelatado,
+      solucaoInicial,
+      valorTotal,
+      observacoes
     } = req.body;
 
-    // Use clienteId ou cliente
+    // Usa clienteId ou cliente para buscar o cliente
     const idCliente = clienteId || cliente;
 
     if (!idCliente) {
       return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
     }
 
-    // Verificar se o cliente existe
+    // Verificar se o cliente existe no banco
     const clienteDoc = await Cliente.findById(idCliente);
     if (!clienteDoc) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
+    // Cria um novo serviço com os dados recebidos
     const novoServico = new Servico({
       numero: new Date().getTime().toString(),
       dataServico,
@@ -372,13 +383,14 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     });
 
     await novoServico.save();
+
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
+
   } catch (error) {
     console.error('Erro ao criar serviço:', error);
-    next(error);
+    next(error); // Passa o erro para o middleware de erro do Express
   }
 });
-
 
 // Rota para listar todos os serviços
 app.get('/api/servicos', authenticateToken, async (req, res, next) => {

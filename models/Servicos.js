@@ -19,7 +19,7 @@ const servicoSchema = new mongoose.Schema({
     required: true 
   },
   cliente: { 
-    type: String, 
+    type: String,  // Armazena o ID do cliente
     required: true 
   },
   responsavel: { 
