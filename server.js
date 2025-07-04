@@ -339,7 +339,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       status,
       autorServico,
       clienteId,
-      cliente, // pode vir clienteId ou cliente
+      cliente, // para segurança, aceita ambos
       nomeCompletoCliente,
       contatoCliente,
       marcaAparelho,
@@ -350,26 +350,26 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       observacoes
     } = req.body;
 
-    // Usa clienteId ou cliente para buscar o cliente
+    // Usa clienteId ou cliente para identificar o cliente
     const idCliente = clienteId || cliente;
 
     if (!idCliente) {
       return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
     }
 
-    // Verificar se o cliente existe no banco
+    // Verifica se o cliente existe
     const clienteDoc = await Cliente.findById(idCliente);
     if (!clienteDoc) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    // Cria um novo serviço com os dados recebidos
+    // Cria novo serviço
     const novoServico = new Servico({
       numero: new Date().getTime().toString(),
       dataServico,
       horaServico,
       status,
-      cliente: idCliente,
+      cliente: idCliente,         // salva aqui o ID do cliente
       responsavel: autorServico,
       observacoes,
       autorServico,
@@ -388,7 +388,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
 
   } catch (error) {
     console.error('Erro ao criar serviço:', error);
-    next(error); // Passa o erro para o middleware de erro do Express
+    next(error);
   }
 });
 
