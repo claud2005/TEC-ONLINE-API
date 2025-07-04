@@ -66,6 +66,13 @@ const servicoSchema = new mongoose.Schema({
     type: Number, 
     required: true 
   },
+  imagens: {
+    type: [String], 
+    default: [],
+    required: false
+  }
 }, { timestamps: true });
 
+const Servico = mongoose.model('Servico', servicoSchema);
 module.exports = mongoose.model('Servico', servicoSchema);
+module.exports = Servico;

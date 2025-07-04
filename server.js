@@ -334,20 +334,9 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     console.log('Dados recebidos:', req.body);
 
     const {
-      dataServico,
-      horaServico,
-      status,
-      autorServico,
-      clienteId,
-      cliente, // para segurança, aceita ambos
-      nomeCompletoCliente,
-      contatoCliente,
-      marcaAparelho,
-      modeloAparelho,
-      problemaRelatado,
-      solucaoInicial,
-      valorTotal,
-      observacoes
+      dataServico, horaServico, status, autorServico, clienteId,
+      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho,
+      problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
     // Usa clienteId ou cliente para identificar o cliente
@@ -369,7 +358,8 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       dataServico,
       horaServico,
       status,
-      cliente: idCliente,         // salva aqui o ID do cliente
+      cliente,
+      clienteID,
       responsavel: autorServico,
       observacoes,
       autorServico,
@@ -383,9 +373,7 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
     });
 
     await novoServico.save();
-
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
-
   } catch (error) {
     console.error('Erro ao criar serviço:', error);
     next(error);
