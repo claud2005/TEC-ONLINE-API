@@ -793,29 +793,6 @@ app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   }
 });
 
-
-// Rota para buscar um cliente específico
-app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
-  try {
-    const clienteId = req.params.id;
-
-    const cliente = await Cliente.findById(clienteId);
-
-    if (!cliente) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
-    }
-
-    const clienteObj = cliente.toObject();
-    clienteObj.id = clienteObj._id;
-    delete clienteObj._id;
-
-    res.status(200).json(clienteObj);
-  } catch (error) {
-    res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
-  }
-});
-
-
 // Rota para buscar clientes por nome ou e-mail
 app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
   try {
