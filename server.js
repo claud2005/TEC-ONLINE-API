@@ -350,24 +350,24 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    const novoServico = new Servico({
-      numero: new Date().getTime().toString(),
-      dataServico,
-      horaServico,
-      status,
-      cliente,
-      clienteId, // Armazene o ID do cliente
-      responsavel: autorServico,
-      observacoes,
-      autorServico,
-      nomeCompletoCliente,
-      contatoCliente,
-      modeloAparelho,
-      marcaAparelho,
-      problemaRelatado,
-      solucaoInicial,
-      valorTotal,
-    });
+const novoServico = new Servico({
+  numero: new Date().getTime().toString(),
+  dataServico,
+  horaServico,
+  status,
+  cliente: clienteId,   // <- aqui só o ID (string)
+  responsavel: autorServico,
+  observacoes,
+  autorServico,
+  nomeCompletoCliente,
+  contatoCliente,
+  modeloAparelho,
+  marcaAparelho,
+  problemaRelatado,
+  solucaoInicial,
+  valorTotal,
+});
+
 
     await novoServico.save();
     return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
