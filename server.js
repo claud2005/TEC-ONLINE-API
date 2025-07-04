@@ -410,37 +410,48 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       valorTotal, observacoes, autorServico
     } = req.body;
 
-    const imagens = req.files.map(file => file.filename);
+    // Verifica se há arquivos e mapeia os nomes
+    const imagens = req.files ? req.files.map(file => file.filename) : [];
 
     const updateData = {
-      dataServico: dataServico,
-      horaServico: horaServico,
-      status: status,
+      dataServico,
+      horaServico,
+      status,
       cliente: nomeCliente,
       descricao: problemaCliente,
       responsavel: autorServico,
-      observacoes: observacoes,
-      autorServico: autorServico,
+      observacoes,
+      autorServico,
       nomeCompletoCliente: nomeCliente,
-      contatoCliente: telefoneContato,
-      modeloAparelho: modeloAparelho,
-      marcaAparelho: marcaAparelho,
+      contatoCliente: telefoneContato, // Usando o campo correto
+      modeloAparelho,
+      marcaAparelho,
       problemaRelatado: problemaCliente,
-      solucaoInicial: solucaoInicial,
-      valorTotal: parseFloat(valorTotal),
+      solucaoInicial,
+      valorTotal: parseFloat(valorTotal) || 0,
       imagens
     };
 
-    const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const servicoAtualizado = await Servico.findByIdAndUpdate(
+      req.params.id, 
+      updateData, 
+      { new: true }
+    );
 
     if (!servicoAtualizado) {
       return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    res.status(200).json({ message: 'Serviço atualizado com sucesso!', servico: servicoAtualizado });
+    res.status(200).json({ 
+      message: 'Serviço atualizado com sucesso!', 
+      servico: servicoAtualizado 
+    });
   } catch (error) {
     console.error('Erro ao atualizar serviço:', error);
-    next(error);
+    res.status(500).json({ 
+      message: 'Erro ao atualizar serviço',
+      error: error.message 
+    });
   }
 });
 
