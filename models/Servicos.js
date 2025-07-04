@@ -19,8 +19,9 @@ const servicoSchema = new mongoose.Schema({
     required: true 
   },
   cliente: { 
-    type: String, 
-    required: true 
+  type: mongoose.Schema.Types.ObjectId, 
+  ref: 'Cliente', 
+  required: true 
   },
   responsavel: { 
     type: String, 

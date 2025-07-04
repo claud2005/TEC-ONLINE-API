@@ -475,10 +475,8 @@ app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
-
     // Buscar serviços relacionados ao cliente usando string
     const orcamentos = await Servico.find({ cliente: clienteId });
-
     res.status(200).json(orcamentos);
   } catch (error) {
     res.status(500).json({ 
