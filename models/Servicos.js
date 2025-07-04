@@ -74,5 +74,4 @@ const servicoSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 const Servico = mongoose.model('Servico', servicoSchema);
-module.exports = mongoose.model('Servico', servicoSchema);
 module.exports = Servico;
