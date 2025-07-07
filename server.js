@@ -402,71 +402,69 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 });
 
 
-app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res, next) => {
+app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res) => {
   try {
-    console.log('Corpo da requisição:', req.body);
-    console.log('Arquivos recebidos:', req.files);
-    
     const {
       dataServico, horaServico, status, nomeCliente, telefoneContato,
-      modeloAparelho, marcaAparelho, problemaCliente, solucaoInicial,
-      valorTotal, observacoes, autorServico
+      modeloAparelho, marcaAparelho, problemaRelatado,
+      solucaoInicial, valorTotal, observacoes, autorServico,
     } = req.body;
 
-    console.log('Dados antes da atualização:', {
-      dataServico, horaServico, status, nomeCliente, telefoneContato,
-      modeloAparelho, marcaAparelho, problemaCliente, solucaoInicial,
-      valorTotal, observacoes, autorServico
-    });
+    // Imagens novas via upload
+    const imagensNovas = req.files ? req.files.map(file => file.filename) : [];
 
-    const imagens = req.files ? req.files.map(file => file.filename) : [];
+    // Imagens já existentes (enviadas como string JSON ou array)
+    let imagensExistentes = [];
+    if (req.body.imagensExistentes) {
+      if (typeof req.body.imagensExistentes === 'string') {
+        imagensExistentes = [req.body.imagensExistentes];
+      } else if (Array.isArray(req.body.imagensExistentes)) {
+        imagensExistentes = req.body.imagensExistentes;
+      }
+    }
+
+    const imagensFinal = [...imagensExistentes, ...imagensNovas];
 
     const updateData = {
       dataServico,
       horaServico,
       status,
-      cliente: nomeCliente,
-      descricao: problemaCliente,
-      responsavel: autorServico,
-      observacoes,
-      autorServico,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
       modeloAparelho,
       marcaAparelho,
-      problemaRelatado: problemaCliente,
+      problemaRelatado,
       solucaoInicial,
       valorTotal: parseFloat(valorTotal) || 0,
-      imagens
+      observacoes,
+      autorServico,
+      imagens: imagensFinal,
     };
 
-    console.log('Dados para atualização:', updateData);
-
     const servicoAtualizado = await Servico.findByIdAndUpdate(
-      req.params.id, 
-      updateData, 
+      req.params.id,
+      updateData,
       { new: true }
     );
 
     if (!servicoAtualizado) {
-      console.log('Serviço não encontrado para ID:', req.params.id);
       return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    console.log('Serviço atualizado com sucesso:', servicoAtualizado);
     res.status(200).json({ 
       message: 'Serviço atualizado com sucesso!', 
       servico: servicoAtualizado 
     });
+
   } catch (error) {
-    console.error('Erro detalhado ao atualizar serviço:', error);
-    res.status(500).json({ 
+    console.error('Erro ao atualizar serviço:', error);
+    res.status(500).json({
       message: 'Erro ao atualizar serviço',
       error: error.message,
-      stack: error.stack // Adiciona stack trace para debug
     });
   }
 });
+
 
 // Rota PATCH para atualizar apenas o status do serviço
 app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
