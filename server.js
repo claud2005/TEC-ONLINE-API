@@ -869,26 +869,28 @@ app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
 // Rota para criar um novo cliente com codigoCliente automático
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
-    const {
-      nome,
-      morada,
-      codigoPostal,
-      contacto,
-      email,
-      contribuinte
-    } = req.body;
+    const { nome, morada, codigoPostal, contacto, email, contribuinte } = req.body;
 
-    // Verificação dos campos obrigatórios
     if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
-    // Buscar todos os clientes ordenados por codigoCliente
-    const clientesExistentes = await Cliente.find().sort({ codigoCliente: 1 });
+    // Buscar todos os clientes ordenados por codigoCliente crescente
+    const clientes = await Cliente.find().sort({ codigoCliente: 1 });
 
-    // Definir o próximo código disponível
-    const novoCodigo = (clientesExistentes.length + 1).toString().padStart(2, '0');
+    // Encontrar o menor código faltando na sequência
+    let codigoNumero = 1;
+    for (let cliente of clientes) {
+      const codNum = parseInt(cliente.codigoCliente, 10);
+      if (codNum !== codigoNumero) {
+        break; // achou o buraco
+      }
+      codigoNumero++;
+    }
 
+    const codigoCliente = codigoNumero.toString().padStart(2, '0');
+
+    // Criar o cliente com código sequencial correto
     const novoCliente = new Cliente({
       nome,
       morada,
@@ -896,21 +898,15 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
       contacto,
       email,
       contribuinte,
-      codigoCliente: novoCodigo,
-      numeroCliente: novoCodigo // Se usas esse campo
+      codigoCliente,
+      numeroCliente: codigoCliente, // se você usa esse campo também
     });
 
     await novoCliente.save();
 
-    res.status(201).json({
-      message: 'Cliente criado com sucesso!',
-      cliente: novoCliente
-    });
+    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
   } catch (error) {
-    res.status(500).json({
-      message: 'Erro ao criar cliente',
-      error: error.message
-    });
+    res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
   }
 });
 
