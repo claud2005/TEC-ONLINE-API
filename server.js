@@ -866,6 +866,54 @@ app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Rota para criar um novo cliente com codigoCliente automático
+app.post('/api/clientes', authenticateToken, async (req, res) => {
+  try {
+    const {
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte
+    } = req.body;
+
+    // Verificação dos campos obrigatórios
+    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
+      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
+    }
+
+    // Buscar todos os clientes ordenados por codigoCliente
+    const clientesExistentes = await Cliente.find().sort({ codigoCliente: 1 });
+
+    // Definir o próximo código disponível
+    const novoCodigo = (clientesExistentes.length + 1).toString().padStart(2, '0');
+
+    const novoCliente = new Cliente({
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente: novoCodigo,
+      numeroCliente: novoCodigo // Se usas esse campo
+    });
+
+    await novoCliente.save();
+
+    res.status(201).json({
+      message: 'Cliente criado com sucesso!',
+      cliente: novoCliente
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Erro ao criar cliente',
+      error: error.message
+    });
+  }
+});
+
 // Rota para buscar clientes por nome ou e-mail
 app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
   try {
