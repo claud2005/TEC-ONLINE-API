@@ -2,9 +2,8 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { isEmail } = require('validator');
-const crypto = require('crypto');  // Necessário para gerar tokens seguros
+const crypto = require('crypto');
 
-// Esquema do Usuário
 const userSchema = new mongoose.Schema({
   fullName: {
     type: String,
@@ -53,13 +52,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
   resetPasswordToken: String,
   resetPasswordExpires: Date,
-});
+}, { timestamps: true }); // ATIVA createdAt e updatedAt
 
 // Middleware para criptografar senha
 userSchema.pre('save', async function (next) {
@@ -74,52 +69,41 @@ userSchema.pre('save', async function (next) {
   }
 });
 
-// Método para comparar senhas
+// Métodos auxiliares
 userSchema.methods.comparePassword = async function (candidatePassword) {
-  try {
-    const isMatch = await bcrypt.compare(candidatePassword, this.password);
-    return isMatch;
-  } catch (err) {
-    throw new Error('Erro ao comparar senhas');
-  }
+  return bcrypt.compare(candidatePassword, this.password);
 };
 
-// Geração de token JWT
 userSchema.methods.generateAuthToken = function () {
-  const token = jwt.sign(
+  return jwt.sign(
     { userId: this._id, role: this.role },
     process.env.JWT_SECRET || 'secret',
     { expiresIn: '1h' }
   );
-  return token;
 };
 
-// Atualizar perfil
 userSchema.methods.updateProfile = async function (updatedData) {
   if (updatedData.fullName) this.fullName = updatedData.fullName;
   if (updatedData.username) this.username = updatedData.username;
   if (updatedData.bio) this.bio = updatedData.bio;
   if (updatedData.profilePicture) this.profilePicture = updatedData.profilePicture;
   if (updatedData.telefone) this.telefone = updatedData.telefone;
-  if (updatedData.role) this.role = updatedData.role; // <-- Permite atualizar o papel (admin/user)
+  if (updatedData.role) this.role = updatedData.role;
 
   await this.save();
   return this;
 };
 
-// Gerar token de redefinição de senha
 userSchema.methods.generateResetPasswordToken = function () {
   const resetToken = crypto.randomBytes(32).toString('hex');
   this.resetPasswordToken = resetToken;
-  this.resetPasswordExpires = Date.now() + 3600000; // 1h
+  this.resetPasswordExpires = Date.now() + 3600000;
   return resetToken;
 };
 
-// Validar token de reset
 userSchema.methods.isResetPasswordTokenValid = function (token) {
   return this.resetPasswordToken === token && this.resetPasswordExpires > Date.now();
 };
 
 const User = mongoose.model('User', userSchema);
-
 module.exports = User;
