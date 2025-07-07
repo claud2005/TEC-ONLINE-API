@@ -821,18 +821,14 @@ app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
     let filtro = {};
 
     if (nome) {
-      filtro.nome = new RegExp(nome, 'i'); // Filtra pelo nome, ignorando maiúsculas/minúsculas
+      filtro.nome = new RegExp(nome, 'i'); // Busca insensível a maiúsculas/minúsculas
     }
 
     if (email) {
-      filtro.email = new RegExp(email, 'i'); // Filtra pelo e-mail, ignorando maiúsculas/minúsculas
+      filtro.email = new RegExp(email, 'i');
     }
 
-    const clientes = await Cliente.find(filtro);
-
-    if (clientes.length === 0) {
-      return res.status(404).json({ message: 'Nenhum cliente encontrado com esses critérios.' });
-    }
+    const clientes = await Cliente.find(filtro).limit(20); // Limite para performance
 
     res.status(200).json(clientes);
   } catch (error) {
