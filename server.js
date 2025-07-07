@@ -866,35 +866,44 @@ app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// Rota para criar um novo cliente com codigoCliente automático
+/// Função auxiliar para gerar o próximo código cliente automático
+async function gerarProximoCodigoCliente() {
+  const clientes = await Cliente.find().sort({ codigoCliente: 1 }); // ordena crescente
+
+  for (let i = 0; i < clientes.length; i++) {
+    const codigoEsperado = (i + 1).toString().padStart(2, '0'); // 01, 02, 03, ...
+    if (clientes[i].codigoCliente !== codigoEsperado) {
+      return codigoEsperado; // achou "buraco"
+    }
+  }
+
+  // Sem buracos, próximo número após o último
+  return (clientes.length + 1).toString().padStart(2, '0');
+}
+
+// Endpoint para criar cliente com códigoCliente automático
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
-    const { nome, morada, codigoPostal, contacto, email, contribuinte } = req.body;
+    const {
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      // não espera codigoCliente no body porque é gerado aqui
+    } = req.body;
 
+    // Validação básica
     if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
-    // Buscar todos os clientes ordenados pelo código
-    const clientes = await Cliente.find().sort({ codigoCliente: 1 });
+    // Gera códigoCliente automático
+    const codigoCliente = await gerarProximoCodigoCliente();
 
-    // Extrair os números dos códigos
-    const codigos = clientes.map(c => parseInt(c.codigoCliente, 10));
-
-    // Encontrar o menor código faltante
-    let novoCodigoNum = 1;
-    for (let i = 0; i < codigos.length; i++) {
-      if (codigos[i] !== novoCodigoNum) {
-        break;
-      }
-      novoCodigoNum++;
-    }
-
-    // Gerar códigoCliente formatado com 2 dígitos
-    const codigoCliente = novoCodigoNum.toString().padStart(2, '0');
-
-    // Criar novo cliente com código gerado
-    const novoCliente = new Cliente({
+    // Cria cliente novo
+    const cliente = new Cliente({
       nome,
       morada,
       codigoPostal,
@@ -902,18 +911,16 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
       email,
       contribuinte,
       codigoCliente,
-      numeroCliente: novoCodigoNum
     });
 
-    await novoCliente.save();
+    await cliente.save();
 
-    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
-
+    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente });
   } catch (error) {
+    console.error('Erro ao criar cliente:', error);
     res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
   }
 });
-
 
 // Rota para buscar clientes por nome ou e-mail
 app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
