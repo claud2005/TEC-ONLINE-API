@@ -875,22 +875,25 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
       return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
-    // Buscar todos os clientes ordenados por codigoCliente crescente
+    // Buscar todos os clientes ordenados pelo código
     const clientes = await Cliente.find().sort({ codigoCliente: 1 });
 
-    // Encontrar o menor código faltando na sequência
-    let codigoNumero = 1;
-    for (let cliente of clientes) {
-      const codNum = parseInt(cliente.codigoCliente, 10);
-      if (codNum !== codigoNumero) {
-        break; // achou o buraco
+    // Extrair os números dos códigos
+    const codigos = clientes.map(c => parseInt(c.codigoCliente, 10));
+
+    // Encontrar o menor código faltante
+    let novoCodigoNum = 1;
+    for (let i = 0; i < codigos.length; i++) {
+      if (codigos[i] !== novoCodigoNum) {
+        break;
       }
-      codigoNumero++;
+      novoCodigoNum++;
     }
 
-    const codigoCliente = codigoNumero.toString().padStart(2, '0');
+    // Gerar códigoCliente formatado com 2 dígitos
+    const codigoCliente = novoCodigoNum.toString().padStart(2, '0');
 
-    // Criar o cliente com código sequencial correto
+    // Criar novo cliente com código gerado
     const novoCliente = new Cliente({
       nome,
       morada,
@@ -899,16 +902,18 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
       email,
       contribuinte,
       codigoCliente,
-      numeroCliente: codigoCliente, // se você usa esse campo também
+      numeroCliente: novoCodigoNum
     });
 
     await novoCliente.save();
 
     res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
+
   } catch (error) {
     res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
   }
 });
+
 
 // Rota para buscar clientes por nome ou e-mail
 app.get('/api/clientes/busca', authenticateToken, async (req, res) => {
