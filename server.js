@@ -837,7 +837,7 @@ app.put('/api/clientes/:id', authenticateToken, async (req, res) => {
 });
 
 
-// Rota para deletar um cliente
+// Rota para deletar um cliente e reorganizar os códigos
 app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
     const clienteId = req.params.id;
@@ -848,7 +848,19 @@ app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    res.status(200).json({ message: 'Cliente deletado com sucesso!' });
+    // Buscar todos os clientes restantes, ordenados por codigoCliente
+    const clientesRestantes = await Cliente.find().sort({ codigoCliente: 1 });
+
+    // Atualizar os códigos sequencialmente (01, 02, 03, ...)
+    for (let i = 0; i < clientesRestantes.length; i++) {
+      const novoCodigo = (i + 1).toString().padStart(2, '0');
+      if (clientesRestantes[i].codigoCliente !== novoCodigo) {
+        clientesRestantes[i].codigoCliente = novoCodigo;
+        await clientesRestantes[i].save();
+      }
+    }
+
+    res.status(200).json({ message: 'Cliente deletado com sucesso e códigos reorganizados!' });
   } catch (error) {
     res.status(500).json({ message: 'Erro ao deletar cliente', error: error.message });
   }
