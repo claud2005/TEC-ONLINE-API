@@ -116,7 +116,7 @@ app.post('/api/signup', [
 // Rota para buscar todos os usuários
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select('-password'); // Exclui a senha dos resultados
     res.status(200).json(users);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
@@ -140,25 +140,65 @@ app.put('/api/users/:id', [
 
   try {
     const userId = req.params.id;
-    const updateData = { ...req.body };
+    const updateData = { 
+      ...req.body,
+      updatedAt: new Date() // Garante que o campo updatedAt será sempre atualizado
+    };
 
+    // Remove a senha do updateData se estiver vazia ou não for fornecida
     if (!updateData.password || updateData.password.trim() === '') {
       delete updateData.password;
+    } else {
+      // Se uma nova senha foi fornecida, ela será hasheada pelo pre('save') hook
+      updateData.password = updateData.password.trim();
     }
 
-    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      userId, 
+      updateData, 
+      {
+        new: true,          // Retorna o documento atualizado
+        runValidators: true, // Executa as validações do schema
+        context: 'query'     // Necessário para algumas validações do Mongoose
+      }
+    ).select('-password -__v'); // Exclui a senha e a versão do documento
 
     if (!updatedUser) {
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    res.status(200).json({ message: 'Utilizador atualizado com sucesso!', user: updatedUser });
+    // Log para debug (pode remover em produção)
+    console.log('Utilizador atualizado:', {
+      id: updatedUser._id,
+      nome: updatedUser.fullName,
+      atualizadoEm: updatedUser.updatedAt
+    });
+
+    res.status(200).json({ 
+      message: 'Utilizador atualizado com sucesso!', 
+      user: updatedUser 
+    });
   } catch (error) {
     console.error('Erro ao atualizar utilizador:', error);
-    res.status(500).json({ message: 'Erro ao atualizar utilizador' });
+    
+    // Tratamento de erros mais específico
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Erro de validação',
+        details: error.message 
+      });
+    }
+    
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Email ou nome de usuário já existe' 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Erro ao atualizar utilizador',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
