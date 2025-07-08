@@ -429,7 +429,7 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
         return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
       }
 
-      const fileName = `users/${userId}/${Date.now()}-${req.file.originalname}`;
+      const fileName = `servicos/${servicosId}/${Date.now()}-${req.file.originalname}`;
 
       const blob = await put(fileName, fileBuffer, {
         access: 'public',
