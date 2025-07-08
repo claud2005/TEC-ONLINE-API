@@ -309,36 +309,55 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       solucaoInicial,
       valorTotal,
       observacoes,
-      autorServico
+      autorServico,
+      imagensExistentes,
+      imagensParaRemover
     } = req.body;
 
-    // Upload das novas imagens (se houver)
-    let imagens = [];
+    // Normalizar arrays (podem vir string ou array)
+    const imagensExistentesArray = imagensExistentes
+      ? (Array.isArray(imagensExistentes) ? imagensExistentes : [imagensExistentes])
+      : [];
+    const imagensParaRemoverArray = imagensParaRemover
+      ? (Array.isArray(imagensParaRemover) ? imagensParaRemover : [imagensParaRemover])
+      : [];
 
+    // Deletar imagens removidas do storage
+    for (const url of imagensParaRemoverArray) {
+      const fileName = url.split('/').slice(-2).join('/');
+      try {
+        await deleteFile(fileName); // Implemente esta função conforme seu storage
+      } catch (e) {
+        console.error(`Erro ao deletar arquivo ${fileName}:`, e);
+      }
+    }
+
+    // Upload das novas imagens
+    let imagensNovas = [];
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
         const fileBuffer = file.buffer;
-
         if (!fileBuffer) {
           return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
         }
-
         const fileName = `servicos/${servicoId}/${Date.now()}-${file.originalname}`;
         const blob = await put(fileName, fileBuffer, {
           access: 'public',
           contentType: file.mimetype,
         });
-
-        imagens.push(blob.url);
+        imagensNovas.push(blob.url);
       }
     }
+
+    // Construir array final de imagens (existentes menos removidas + novas)
+    const imagensAtualizadas = [...imagensExistentesArray.filter(url => !imagensParaRemoverArray.includes(url)), ...imagensNovas];
 
     // Dados atualizados
     const updateData = {
       dataServico,
       horaServico,
       status,
-      cliente: clienteId, // <- ID do cliente, obrigatório
+      cliente: clienteId,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
       modeloAparelho,
@@ -350,12 +369,8 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       observacoes,
       responsavel: autorServico,
       autorServico,
+      imagens: imagensAtualizadas,
     };
-
-    // Se imagens novas foram enviadas, atualize o campo
-    if (imagens.length > 0) {
-      updateData.imagens = imagens;
-    }
 
     const servicoAtualizado = await Servico.findByIdAndUpdate(
       servicoId,
