@@ -840,45 +840,86 @@ app.put('/api/clientes/:id', authenticateToken, async (req, res) => {
 // Rota para deletar um cliente e reorganizar os códigos
 app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
-    const clienteId = req.params.id;
+    // Verifica se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        message: 'ID do cliente inválido!' 
+      });
+    }
 
-    const clienteDeletado = await Cliente.findByIdAndDelete(clienteId);
-
+    // Deleta o cliente
+    const clienteDeletado = await Cliente.findByIdAndDelete(req.params.id);
+    
     if (!clienteDeletado) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+      return res.status(404).json({ 
+        message: 'Cliente não encontrado!' 
+      });
     }
 
-    // Buscar todos os clientes restantes, ordenados por codigoCliente
-    const clientesRestantes = await Cliente.find().sort({ codigoCliente: 1 });
+    // Reorganiza a numeração dos clientes restantes
+    const clientesRestantes = await Cliente.find().sort({ numeroCliente: 1 });
 
-    // Atualizar os códigos sequencialmente (01, 02, 03, ...)
-    for (let i = 0; i < clientesRestantes.length; i++) {
-      const novoCodigo = (i + 1).toString().padStart(2, '0');
-      if (clientesRestantes[i].codigoCliente !== novoCodigo) {
-        clientesRestantes[i].codigoCliente = novoCodigo;
-        await clientesRestantes[i].save();
+    // Usa transação para garantir atomicidade
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      for (let i = 0; i < clientesRestantes.length; i++) {
+        const novoNumero = i + 1;
+        const novoCodigo = novoNumero.toString().padStart(2, '0');
+
+        await Cliente.findByIdAndUpdate(
+          clientesRestantes[i]._id,
+          {
+            numeroCliente: novoNumero,
+            codigoCliente: novoCodigo,
+            updatedAt: new Date()
+          },
+          { session }
+        );
       }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ 
+        message: 'Cliente deletado e numeração reorganizada com sucesso!',
+        clienteDeletado: {
+          id: clienteDeletado._id,
+          codigo: clienteDeletado.codigoCliente,
+          nome: clienteDeletado.nome
+        }
+      });
+
+    } catch (transactionError) {
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
     }
 
-    res.status(200).json({ message: 'Cliente deletado com sucesso e códigos reorganizados!' });
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao deletar cliente', error: error.message });
+    console.error('Erro ao deletar cliente:', error);
+    res.status(500).json({ 
+      message: 'Erro interno ao deletar cliente',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
-// Função auxiliar para gerar o próximo código cliente automático
+// Versão melhorada da função de geração de código
 async function gerarProximoCodigoCliente() {
-  const clientes = await Cliente.find().sort({ codigoCliente: 1 }); // ordena crescente
-
-  for (let i = 0; i < clientes.length; i++) {
-    const codigoEsperado = (i + 1).toString().padStart(2, '0'); // 01, 02, 03, ...
-    if (clientes[i].codigoCliente !== codigoEsperado) {
-      return codigoEsperado; // achou "buraco"
+  const clientes = await Cliente.find().sort({ numeroCliente: 1 });
+  
+  // Encontra o primeiro "buraco" na sequência numérica
+  let codigoEsperado = 1;
+  for (const cliente of clientes) {
+    if (cliente.numeroCliente > codigoEsperado) {
+      break; // Achou um buraco
     }
+    codigoEsperado++;
   }
-
-  // Sem buracos, próximo número após o último
-  return (clientes.length + 1).toString().padStart(2, '0');
+  
+  return codigoEsperado.toString().padStart(2, '0');
 }
 
 // Endpoint para criar cliente com códigoCliente automático
@@ -886,13 +927,27 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
     const { nome, morada, codigoPostal, contacto, email, contribuinte } = req.body;
 
+    // Validação de campos obrigatórios
     if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
-      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
+      return res.status(400).json({ 
+        message: 'Todos os campos são obrigatórios!',
+        requiredFields: ['nome', 'morada', 'codigoPostal', 'contacto', 'email', 'contribuinte']
+      });
     }
 
+    // Verifica se email já existe
+    const clienteExistente = await Cliente.findOne({ email });
+    if (clienteExistente) {
+      return res.status(409).json({ 
+        message: 'Já existe um cliente com este email!' 
+      });
+    }
+
+    // Gera código sequencial
     const codigoCliente = await gerarProximoCodigoCliente();
     const numeroCliente = parseInt(codigoCliente, 10);
 
+    // Cria novo cliente
     const novoCliente = new Cliente({
       nome,
       morada,
@@ -902,14 +957,29 @@ app.post('/api/clientes', authenticateToken, async (req, res) => {
       contribuinte,
       codigoCliente,
       numeroCliente,
+      createdAt: new Date()
     });
 
+    // Salva no banco de dados
     await novoCliente.save();
 
-    res.status(201).json({ message: 'Cliente criado com sucesso!', cliente: novoCliente });
+    // Resposta de sucesso
+    res.status(201).json({ 
+      message: 'Cliente criado com sucesso!',
+      cliente: {
+        id: novoCliente._id,
+        codigo: novoCliente.codigoCliente,
+        nome: novoCliente.nome,
+        email: novoCliente.email
+      }
+    });
+
   } catch (error) {
     console.error('Erro ao criar cliente:', error);
-    res.status(500).json({ message: 'Erro ao criar cliente', error: error.message });
+    res.status(500).json({ 
+      message: 'Erro interno ao criar cliente',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
