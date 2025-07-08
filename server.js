@@ -434,26 +434,24 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       autorServico
     } = req.body;
 
-    let imagens = [];
+ let photoUrl = null;
 
-    // Upload de imagens para o Blob da Vercel
-    if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map(async (file) => {
-        if (!file.buffer) {
-          throw new Error('Buffer da imagem ausente');
-        }
+    if (req.file) {
+      const fileBuffer = req.file.buffer;
 
-        const fileName = `servicos/${servicoId}/${Date.now()}-${file.originalname}`;
-        const blob = await put(fileName, file.buffer, {
-          access: 'public',
-          contentType: file.mimetype,
-        });
+      if (!fileBuffer) {
+        return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+      }
 
-        return blob.url;
+      const fileName = `servicos/${Servico}/${Date.now()}-${req.file.originalname}`;
+
+      const blob = await put(fileName, fileBuffer, {
+        access: 'public',
+        contentType: req.file.mimetype,
       });
 
-      imagens = await Promise.all(uploadPromises);
-    }
+  photoUrl = blob.url;
+}
 
     // Dados atualizados
     const updateData = {
