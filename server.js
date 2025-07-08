@@ -295,22 +295,25 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
 
-    // Dados para atualizar
     const { fullName, username } = req.body;
-    console.log('Dados recebidos:', { fullName, username, profilePicture: req.file?.filename });  // Log para depuração
 
     if (!fullName || !username) {
       return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
     }
 
-let photoUrl = null;
-// Se existir um ficheiro enviado
+    let photoUrl = null;
+
     if (req.file) {
       const fileBuffer = req.file.buffer;
+
+      if (!fileBuffer) {
+        return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+      }
+
       const fileName = `users/${userId}/${Date.now()}-${req.file.originalname}`;
 
       const blob = await put(fileName, fileBuffer, {
-        access: 'public', // ou 'private' se quiseres controlo
+        access: 'public',
         contentType: req.file.mimetype,
       });
 
@@ -319,7 +322,7 @@ let photoUrl = null;
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { fullName, username, profilePicture:photoUrl },
+      { fullName, username, profilePicture: photoUrl },
       { new: true }
     ).select('fullName username profilePicture');
 
@@ -327,7 +330,6 @@ let photoUrl = null;
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    console.log('Utilizador atualizado:', updatedUser);  // Verifica os dados atualizados
     return res.status(200).json(updatedUser);
   } catch (error) {
     console.error('Erro ao atualizar perfil:', error);
