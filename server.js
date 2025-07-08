@@ -434,26 +434,28 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       autorServico
     } = req.body;
 
- let photoUrl = null;
+    let imagens = [];
 
-    if (req.file) {
-      const fileBuffer = req.file.buffer;
+    // Verifica se há arquivos enviados
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileBuffer = file.buffer;
 
-      if (!fileBuffer) {
-        return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+        if (!fileBuffer) {
+          return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+        }
+
+        const fileName = `servicos/${servicoId}/${Date.now()}-${file.originalname}`;
+
+        const blob = await put(fileName, fileBuffer, {
+          access: 'public',
+          contentType: file.mimetype,
+        });
+
+        imagens.push(blob.url);
       }
+    }
 
-      const fileName = `servicos/${Servico}/${Date.now()}-${req.file.originalname}`;
-
-      const blob = await put(fileName, fileBuffer, {
-        access: 'public',
-        contentType: req.file.mimetype,
-      });
-
-  photoUrl = blob.url;
-}
-
-    // Dados atualizados
     const updateData = {
       dataServico,
       horaServico,
@@ -470,8 +472,12 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       observacoes,
       responsavel: autorServico,
       autorServico,
-      imagens
     };
+
+    // Se houver novas imagens, atualize o campo
+    if (imagens.length > 0) {
+      updateData.imagens = imagens;
+    }
 
     const servicoAtualizado = await Servico.findByIdAndUpdate(servicoId, updateData, { new: true });
 
@@ -488,6 +494,7 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
     res.status(500).json({ message: 'Erro ao atualizar serviço', error: error.message });
   }
 });
+
 
 // Rota PATCH para atualizar apenas o status do serviço
 app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
