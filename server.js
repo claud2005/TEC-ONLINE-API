@@ -844,74 +844,22 @@ app.put('/api/clientes/:id', authenticateToken, async (req, res) => {
 });
 
 
-// Rota para deletar um cliente e reorganizar os códigos
 app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
-    // Verifica se o ID é válido
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ 
-        message: 'ID do cliente inválido!' 
-      });
-    }
+    const clienteId = req.params.id;
 
-    // Deleta o cliente
-    const clienteDeletado = await Cliente.findByIdAndDelete(req.params.id);
-    
+    const clienteDeletado = await Cliente.findByIdAndDelete(clienteId);
+
     if (!clienteDeletado) {
-      return res.status(404).json({ 
-        message: 'Cliente não encontrado!' 
-      });
+      return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    // Reorganiza a numeração dos clientes restantes
-    const clientesRestantes = await Cliente.find().sort({ numeroCliente: 1 });
-
-    // Usa transação para garantir atomicidade
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    try {
-      for (let i = 0; i < clientesRestantes.length; i++) {
-        const novoNumero = i + 1;
-        const novoCodigo = novoNumero.toString().padStart(2, '0');
-
-        await Cliente.findByIdAndUpdate(
-          clientesRestantes[i]._id,
-          {
-            numeroCliente: novoNumero,
-            codigoCliente: novoCodigo,
-            updatedAt: new Date()
-          },
-          { session }
-        );
-      }
-
-      await session.commitTransaction();
-      session.endSession();
-
-      res.status(200).json({ 
-        message: 'Cliente deletado e numeração reorganizada com sucesso!',
-        clienteDeletado: {
-          id: clienteDeletado._id,
-          codigo: clienteDeletado.codigoCliente,
-          nome: clienteDeletado.nome
-        }
-      });
-
-    } catch (transactionError) {
-      await session.abortTransaction();
-      session.endSession();
-      throw transactionError;
-    }
-
+    res.status(200).json({ message: 'Cliente deletado com sucesso!' });
   } catch (error) {
-    console.error('Erro ao deletar cliente:', error);
-    res.status(500).json({ 
-      message: 'Erro interno ao deletar cliente',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    res.status(500).json({ message: 'Erro ao deletar cliente', error: error.message });
   }
 });
+
 
 // Versão melhorada da função de geração de código
 async function gerarProximoCodigoCliente() {
