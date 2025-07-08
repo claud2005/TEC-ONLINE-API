@@ -11,6 +11,7 @@ const path = require('path');
 const fs = require('fs'); // Importando o fs para verificar e criar a pasta
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const { put } = require('@vercel/blob');
 dotenv.config();
 
 const User = require('./models/User');
@@ -18,8 +19,6 @@ const Servico = require('./models/Servicos');
 const Cliente = require('./models/Cliente'); 
 
 const app = express();
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 const PORT = process.env.PORT || 3000;
 
@@ -304,15 +303,23 @@ app.put('/api/profile', authenticateToken, upload.single('profilePicture'), asyn
       return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
     }
 
-    // Preparar o caminho da imagem
-    let profilePicture = '';
+let photoUrl = null;
+// Se existir um ficheiro enviado
     if (req.file) {
-      profilePicture = `uploads/${req.file.filename}`;
+      const fileBuffer = req.file.buffer;
+      const fileName = `users/${userId}/${Date.now()}-${req.file.originalname}`;
+
+      const blob = await put(fileName, fileBuffer, {
+        access: 'public', // ou 'private' se quiseres controlo
+        contentType: req.file.mimetype,
+      });
+
+      photoUrl = blob.url;
     }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      { fullName, username, profilePicture },
+      { fullName, username, profilePicture:photoUrl },
       { new: true }
     ).select('fullName username profilePicture');
 
