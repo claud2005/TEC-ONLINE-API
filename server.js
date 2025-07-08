@@ -287,58 +287,96 @@ app.get('/api/profile', authenticateToken, async (req, res, next) => {
 });
 
 // Rota para atualizar o perfil do usuário autenticado
-app.put('/api/profile', authenticateToken, upload.single('profilePicture'), async (req, res, next) => {
+app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res) => {
   try {
     const userId = req.user?.userId;
+    const servicoId = req.params.id;
 
     if (!userId) {
       return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
     }
 
-    const { fullName, username } = req.body;
+    const {
+      dataServico,
+      horaServico,
+      status,
+      clienteId,
+      nomeCliente,
+      telefoneContato,
+      modeloAparelho,
+      marcaAparelho,
+      problemaCliente,
+      solucaoInicial,
+      valorTotal,
+      observacoes,
+      autorServico
+    } = req.body;
 
-    if (!fullName || !username) {
-      return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
-    }
+    // Upload das novas imagens (se houver)
+    let imagens = [];
 
-    let photoUrl = null;
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const fileBuffer = file.buffer;
 
-    if (req.file) {
-      const fileBuffer = req.file.buffer;
+        if (!fileBuffer) {
+          return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+        }
 
-      if (!fileBuffer) {
-        return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+        const fileName = `servicos/${servicoId}/${Date.now()}-${file.originalname}`;
+        const blob = await put(fileName, fileBuffer, {
+          access: 'public',
+          contentType: file.mimetype,
+        });
+
+        imagens.push(blob.url);
       }
-
-      const fileName = `users/${userId}/${Date.now()}-${req.file.originalname}`;
-
-      const blob = await put(fileName, fileBuffer, {
-        access: 'public',
-        contentType: req.file.mimetype,
-      });
-
-      photoUrl = blob.url;
     }
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { fullName, username, profilePicture: photoUrl },
+    // Dados atualizados
+    const updateData = {
+      dataServico,
+      horaServico,
+      status,
+      cliente: clienteId, // <- ID do cliente, obrigatório
+      nomeCompletoCliente: nomeCliente,
+      contatoCliente: telefoneContato,
+      modeloAparelho,
+      marcaAparelho,
+      problemaRelatado: problemaCliente,
+      descricao: problemaCliente,
+      solucaoInicial,
+      valorTotal: isNaN(parseFloat(valorTotal)) ? 0 : parseFloat(valorTotal),
+      observacoes,
+      responsavel: autorServico,
+      autorServico,
+    };
+
+    // Se imagens novas foram enviadas, atualize o campo
+    if (imagens.length > 0) {
+      updateData.imagens = imagens;
+    }
+
+    const servicoAtualizado = await Servico.findByIdAndUpdate(
+      servicoId,
+      updateData,
       { new: true }
-    ).select('fullName username profilePicture');
+    );
 
-    if (!updatedUser) {
-      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    if (!servicoAtualizado) {
+      return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    return res.status(200).json(updatedUser);
+    res.status(200).json({
+      message: 'Serviço atualizado com sucesso!',
+      servico: servicoAtualizado
+    });
+
   } catch (error) {
-    console.error('Erro ao atualizar perfil:', error);
-    next(error);
+    console.error('Erro ao atualizar serviço:', error.message, error.stack);
+    res.status(500).json({ message: 'Erro ao atualizar serviço', error: error.message });
   }
 });
-
-
-
 
 // Rota para criar um novo serviço
 app.post('/api/servicos', authenticateToken, async (req, res, next) => {
