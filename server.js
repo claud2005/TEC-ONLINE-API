@@ -412,82 +412,43 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 
 app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res, next) => {
   try {
-    const userId = req.user?.userId;
-    const servicoId = req.params.id;
-
-    if (!userId) {
-      return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
-    }
-
     const {
-      dataServico,
-      horaServico,
-      status,
-      nomeCliente,
-      telefoneContato,
-      modeloAparelho,
-      marcaAparelho,
-      problemaCliente,
-      solucaoInicial,
-      valorTotal,
-      observacoes,
-      autorServico
+      dataServico, horaServico, status, nomeCliente, telefoneContato,
+      modeloAparelho, marcaAparelho, problemaCliente, solucaoInicial,
+      valorTotal, observacoes, autorServico
     } = req.body;
 
-    let imagens = [];
+    const imagens = req.files.map(file => file.filename);
 
-    // Upload de imagens para o Blob da Vercel
-    if (req.files && req.files.length > 0) {
-      const uploadPromises = req.files.map(async (file) => {
-        if (!file.buffer) {
-          throw new Error('Buffer da imagem ausente');
-        }
-
-        const fileName = `servicos/${servicoId}/${Date.now()}-${file.originalname}`;
-        const blob = await put(fileName, file.buffer, {
-          access: 'public',
-          contentType: file.mimetype,
-        });
-
-        return blob.url;
-      });
-
-      imagens = await Promise.all(uploadPromises);
-    }
-
-    // Dados atualizados
     const updateData = {
-      dataServico,
-      horaServico,
-      status,
+      dataServico: dataServico,
+      horaServico: horaServico,
+      status: status,
       cliente: nomeCliente,
+      descricao: problemaCliente,
+      responsavel: autorServico,
+      observacoes: observacoes,
+      autorServico: autorServico,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
-      modeloAparelho,
-      marcaAparelho,
+      modeloAparelho: modeloAparelho,
+      marcaAparelho: marcaAparelho,
       problemaRelatado: problemaCliente,
-      descricao: problemaCliente,
-      solucaoInicial,
+      solucaoInicial: solucaoInicial,
       valorTotal: parseFloat(valorTotal),
-      observacoes,
-      responsavel: autorServico,
-      autorServico,
       imagens
     };
 
-    const servicoAtualizado = await Servico.findByIdAndUpdate(servicoId, updateData, { new: true });
+    const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
 
     if (!servicoAtualizado) {
       return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    res.status(200).json({
-      message: 'Serviço atualizado com sucesso!',
-      servico: servicoAtualizado
-    });
+    res.status(200).json({ message: 'Serviço atualizado com sucesso!', servico: servicoAtualizado });
   } catch (error) {
     console.error('Erro ao atualizar serviço:', error);
-    res.status(500).json({ message: 'Erro ao atualizar serviço', error: error.message });
+    next(error);
   }
 });
 
