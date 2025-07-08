@@ -115,7 +115,7 @@ app.post('/api/signup', [
 // Rota para buscar todos os usuários
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await User.find();
+    const users = await User.find().select('-password'); // Exclui a senha dos resultados
     res.status(200).json(users);
   } catch (error) {
     console.error('Erro ao buscar usuários:', error);
@@ -139,25 +139,65 @@ app.put('/api/users/:id', [
 
   try {
     const userId = req.params.id;
-    const updateData = { ...req.body };
+    const updateData = { 
+      ...req.body,
+      updatedAt: new Date() // Garante que o campo updatedAt será sempre atualizado
+    };
 
+    // Remove a senha do updateData se estiver vazia ou não for fornecida
     if (!updateData.password || updateData.password.trim() === '') {
       delete updateData.password;
+    } else {
+      // Se uma nova senha foi fornecida, ela será hasheada pelo pre('save') hook
+      updateData.password = updateData.password.trim();
     }
 
-    const updatedUser = await User.findByIdAndUpdate(userId, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    const updatedUser = await User.findByIdAndUpdate(
+      userId, 
+      updateData, 
+      {
+        new: true,          // Retorna o documento atualizado
+        runValidators: true, // Executa as validações do schema
+        context: 'query'     // Necessário para algumas validações do Mongoose
+      }
+    ).select('-password -__v'); // Exclui a senha e a versão do documento
 
     if (!updatedUser) {
       return res.status(404).json({ message: 'Utilizador não encontrado' });
     }
 
-    res.status(200).json({ message: 'Utilizador atualizado com sucesso!', user: updatedUser });
+    // Log para debug (pode remover em produção)
+    console.log('Utilizador atualizado:', {
+      id: updatedUser._id,
+      nome: updatedUser.fullName,
+      atualizadoEm: updatedUser.updatedAt
+    });
+
+    res.status(200).json({ 
+      message: 'Utilizador atualizado com sucesso!', 
+      user: updatedUser 
+    });
   } catch (error) {
     console.error('Erro ao atualizar utilizador:', error);
-    res.status(500).json({ message: 'Erro ao atualizar utilizador' });
+    
+    // Tratamento de erros mais específico
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ 
+        message: 'Erro de validação',
+        details: error.message 
+      });
+    }
+    
+    if (error.code === 11000) {
+      return res.status(400).json({ 
+        message: 'Email ou nome de usuário já existe' 
+      });
+    }
+    
+    res.status(500).json({ 
+      message: 'Erro ao atualizar utilizador',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -336,34 +376,34 @@ let photoUrl = null;
 });
 
 // Rota para criar um novo serviço
-app.post('/api/servicos', authenticateToken, async (req, res, next) => {
+app.post('/api/servicos', authenticateToken, async (req, res) => {
   try {
-    console.log('Dados recebidos:', req.body);
-
     const {
-      dataServico, horaServico, status, autorServico, clienteId, // Adicione clienteId aqui
-      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho, 
+      dataServico, horaServico, status, autorServico, clienteId,
+      nomeCompletoCliente, contatoCliente, marcaAparelho, modeloAparelho,
       problemaRelatado, solucaoInicial, valorTotal, observacoes
     } = req.body;
 
-    // Validação adicional para clienteId
-    if (!clienteId) {
-      return res.status(400).json({ message: 'ID do cliente é obrigatório!' });
+    // Validação do ID do cliente
+    if (!mongoose.Types.ObjectId.isValid(clienteId)) {
+      return res.status(400).json({ message: 'ID do cliente inválido' });
     }
 
-    // Verificar se o cliente existe
-    const cliente = await Cliente.findById(clienteId);
-    if (!cliente) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    // Verifica se cliente existe
+    const clienteExiste = await Cliente.findById(clienteId);
+    if (!clienteExiste) {
+      return res.status(404).json({ message: 'Cliente não encontrado' });
     }
+
+    // Gera número único para o serviço
+    const numeroServico = new Date().getTime().toString();
 
     const novoServico = new Servico({
-      numero: new Date().getTime().toString(),
+      numero: numeroServico,
       dataServico,
       horaServico,
       status,
-      cliente,
-      clienteId, // Armazene o ID do cliente
+      cliente: clienteId, // Agora usando ObjectId
       responsavel: autorServico,
       observacoes,
       autorServico,
@@ -373,14 +413,18 @@ app.post('/api/servicos', authenticateToken, async (req, res, next) => {
       marcaAparelho,
       problemaRelatado,
       solucaoInicial,
-      valorTotal,
+      valorTotal: Number(valorTotal) // Garante que é número
     });
 
     await novoServico.save();
-    return res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
+    res.status(201).json({ message: 'Serviço criado com sucesso!', servico: novoServico });
+
   } catch (error) {
     console.error('Erro ao criar serviço:', error);
-    next(error);
+    res.status(500).json({ 
+      message: 'Erro ao criar serviço',
+      error: error.message // Mostra o erro completo
+    });
   }
 });
 
@@ -405,47 +449,69 @@ app.get('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 });
 
 
-app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res, next) => {
+app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res) => {
   try {
     const {
       dataServico, horaServico, status, nomeCliente, telefoneContato,
-      modeloAparelho, marcaAparelho, problemaCliente, solucaoInicial,
-      valorTotal, observacoes, autorServico
+      modeloAparelho, marcaAparelho, problemaRelatado,
+      solucaoInicial, valorTotal, observacoes, autorServico,
     } = req.body;
 
-    const imagens = req.files.map(file => file.filename);
+    // Imagens novas via upload
+    const imagensNovas = req.files ? req.files.map(file => file.filename) : [];
+
+    // Imagens já existentes (enviadas como string JSON ou array)
+    let imagensExistentes = [];
+    if (req.body.imagensExistentes) {
+      if (typeof req.body.imagensExistentes === 'string') {
+        imagensExistentes = [req.body.imagensExistentes];
+      } else if (Array.isArray(req.body.imagensExistentes)) {
+        imagensExistentes = req.body.imagensExistentes;
+      }
+    }
+
+    const imagensFinal = [...imagensExistentes, ...imagensNovas];
 
     const updateData = {
-      dataServico: dataServico,
-      horaServico: horaServico,
-      status: status,
-      cliente: nomeCliente,
-      descricao: problemaCliente,
-      responsavel: autorServico,
-      observacoes: observacoes,
-      autorServico: autorServico,
+      dataServico,
+      horaServico,
+      status,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
-      modeloAparelho: modeloAparelho,
-      marcaAparelho: marcaAparelho,
-      problemaRelatado: problemaCliente,
-      solucaoInicial: solucaoInicial,
-      valorTotal: parseFloat(valorTotal),
-      imagens
+      modeloAparelho,
+      marcaAparelho,
+      problemaRelatado,
+      solucaoInicial,
+      valorTotal: parseFloat(valorTotal) || 0,
+      observacoes,
+      autorServico,
+      imagens: imagensFinal,
     };
 
-    const servicoAtualizado = await Servico.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const servicoAtualizado = await Servico.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      { new: true }
+    );
 
     if (!servicoAtualizado) {
       return res.status(404).json({ message: 'Serviço não encontrado!' });
     }
 
-    res.status(200).json({ message: 'Serviço atualizado com sucesso!', servico: servicoAtualizado });
+    res.status(200).json({ 
+      message: 'Serviço atualizado com sucesso!', 
+      servico: servicoAtualizado 
+    });
+
   } catch (error) {
     console.error('Erro ao atualizar serviço:', error);
-    next(error);
+    res.status(500).json({
+      message: 'Erro ao atualizar serviço',
+      error: error.message,
+    });
   }
 });
+
 
 // Rota PATCH para atualizar apenas o status do serviço
 app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
@@ -476,17 +542,14 @@ app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
   try {
     const clienteId = req.params.id;
-    
+
     // Verificar se o cliente existe
     const cliente = await Cliente.findById(clienteId);
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
-
-    // Buscar orçamentos relacionados a este cliente
-    // (Assumindo que seu modelo Servico tem um campo clienteId)
-    const orcamentos = await Servico.find({ clienteId: clienteId });
-    
+    // Buscar serviços relacionados ao cliente usando string
+    const orcamentos = await Servico.find({ cliente: clienteId });
     res.status(200).json(orcamentos);
   } catch (error) {
     res.status(500).json({ 
@@ -674,8 +737,6 @@ app.get('/api/verify-token/:token', async (req, res) => {
   }
 });
 
-
-// Rota para criação de cliente
 // Rota para criação de cliente
 app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
@@ -783,45 +844,142 @@ app.put('/api/clientes/:id', authenticateToken, async (req, res) => {
 });
 
 
-// Rota para deletar um cliente
+// Rota para deletar um cliente e reorganizar os códigos
 app.delete('/api/clientes/:id', authenticateToken, async (req, res) => {
   try {
-    const clienteId = req.params.id;
+    // Verifica se o ID é válido
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ 
+        message: 'ID do cliente inválido!' 
+      });
+    }
 
-    const clienteDeletado = await Cliente.findByIdAndDelete(clienteId);
-
+    // Deleta o cliente
+    const clienteDeletado = await Cliente.findByIdAndDelete(req.params.id);
+    
     if (!clienteDeletado) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+      return res.status(404).json({ 
+        message: 'Cliente não encontrado!' 
+      });
     }
 
-    res.status(200).json({ message: 'Cliente deletado com sucesso!' });
+    // Reorganiza a numeração dos clientes restantes
+    const clientesRestantes = await Cliente.find().sort({ numeroCliente: 1 });
+
+    // Usa transação para garantir atomicidade
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      for (let i = 0; i < clientesRestantes.length; i++) {
+        const novoNumero = i + 1;
+        const novoCodigo = novoNumero.toString().padStart(2, '0');
+
+        await Cliente.findByIdAndUpdate(
+          clientesRestantes[i]._id,
+          {
+            numeroCliente: novoNumero,
+            codigoCliente: novoCodigo,
+            updatedAt: new Date()
+          },
+          { session }
+        );
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      res.status(200).json({ 
+        message: 'Cliente deletado e numeração reorganizada com sucesso!',
+        clienteDeletado: {
+          id: clienteDeletado._id,
+          codigo: clienteDeletado.codigoCliente,
+          nome: clienteDeletado.nome
+        }
+      });
+
+    } catch (transactionError) {
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
+    }
+
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao deletar cliente', error: error.message });
+    console.error('Erro ao deletar cliente:', error);
+    res.status(500).json({ 
+      message: 'Erro interno ao deletar cliente',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
+// Versão melhorada da função de geração de código
+async function gerarProximoCodigoCliente() {
+  // Busca todos os clientes ordenados por numeroCliente
+  const clientes = await Cliente.find().sort({ numeroCliente: 1 });
+  
+  // Se não há clientes, começa com 01
+  if (clientes.length === 0) {
+    return '01';
+  }
 
-// Rota para buscar um cliente específico
-app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
+  // Procura por buracos na sequência
+  for (let i = 0; i < clientes.length; i++) {
+    const numeroEsperado = i + 1;
+    if (clientes[i].numeroCliente > numeroEsperado) {
+      // Encontrou um buraco, retorna o número faltante
+      return numeroEsperado.toString().padStart(2, '0');
+    }
+  }
+
+  // Se não há buracos, retorna o próximo número
+  return (clientes.length + 1).toString().padStart(2, '0');
+}
+
+// Endpoint para criar cliente com códigoCliente automático
+app.post('/api/clientes', authenticateToken, async (req, res) => {
   try {
-    const clienteId = req.params.id;
+    const { nome, morada, codigoPostal, contacto, email, contribuinte } = req.body;
 
-    const cliente = await Cliente.findById(clienteId);
-
-    if (!cliente) {
-      return res.status(404).json({ message: 'Cliente não encontrado!' });
+    if (!nome || !morada || !codigoPostal || !contacto || !email || !contribuinte) {
+      return res.status(400).json({ message: 'Todos os campos são obrigatórios!' });
     }
 
-    const clienteObj = cliente.toObject();
-    clienteObj.id = clienteObj._id;
-    delete clienteObj._id;
+    // Verifica se email já existe
+    const clienteExistente = await Cliente.findOne({ email });
+    if (clienteExistente) {
+      return res.status(409).json({ message: 'Email já está em uso!' });
+    }
 
-    res.status(200).json(clienteObj);
+    const codigoCliente = await gerarProximoCodigoCliente();
+    const numeroCliente = parseInt(codigoCliente, 10);
+
+    const novoCliente = new Cliente({
+      nome,
+      morada,
+      codigoPostal,
+      contacto,
+      email,
+      contribuinte,
+      codigoCliente,
+      numeroCliente
+    });
+
+    await novoCliente.save();
+    
+    res.status(201).json({ 
+      message: 'Cliente criado com sucesso!',
+      cliente: novoCliente
+    });
+
   } catch (error) {
-    res.status(500).json({ message: 'Erro ao buscar cliente', error: error.message });
+    console.error('Erro ao criar cliente:', error);
+    res.status(500).json({ 
+      message: 'Erro ao criar cliente',
+      error: error.message 
+    });
   }
 });
-
 
 // Rota para buscar clientes por nome ou e-mail
 app.get('/api/clientes/busca', authenticateToken, async (req, res) => {

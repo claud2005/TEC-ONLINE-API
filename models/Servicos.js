@@ -19,7 +19,8 @@ const servicoSchema = new mongoose.Schema({
     required: true 
   },
   cliente: { 
-    type: String, 
+    type: mongoose.Schema.Types.ObjectId, // Alterado para ObjectId
+    ref: 'Cliente', // Referência ao modelo Cliente
     required: true 
   },
   responsavel: { 
@@ -71,7 +72,7 @@ const servicoSchema = new mongoose.Schema({
     default: [],
     required: false
   }
-});
+}, { timestamps: true });
 
 const Servico = mongoose.model('Servico', servicoSchema);
 module.exports = Servico;

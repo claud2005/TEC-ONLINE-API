@@ -8,8 +8,7 @@ const ClienteSchema = new mongoose.Schema({
   email:          { type: String, required: true },
   contribuinte:   { type: String, required: true },
   codigoCliente:  { type: String, required: false }, 
-  numeroCliente: { type: String, required: false },
-
+  numeroCliente:  { type: Number, required: false },
 }, { timestamps: true });
 
 module.exports = mongoose.model('Cliente', ClienteSchema);
