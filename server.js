@@ -563,25 +563,25 @@ app.patch('/api/servicos/:id', authenticateToken, async (req, res, next) => {
 app.get('/api/clientes/:id/orcamentos', authenticateToken, async (req, res) => {
   try {
     const clienteId = req.params.id;
-    
+
     // Verificar se o cliente existe
     const cliente = await Cliente.findById(clienteId);
     if (!cliente) {
       return res.status(404).json({ message: 'Cliente não encontrado!' });
     }
 
-    // Buscar orçamentos relacionados a este cliente
-    // (Assumindo que seu modelo Servico tem um campo clienteId)
-    const orcamentos = await Servico.find({ clienteId: clienteId });
-    
+    // Buscar orçamentos (serviços) que tenham o cliente correto
+    const orcamentos = await Servico.find({ cliente: clienteId });
+
     res.status(200).json(orcamentos);
   } catch (error) {
-    res.status(500).json({ 
-      message: 'Erro ao buscar orçamentos do cliente', 
-      error: error.message 
+    res.status(500).json({
+      message: 'Erro ao buscar orçamentos do cliente',
+      error: error.message
     });
   }
 });
+
 
 // Rota para obter serviços de um cliente específico
 app.get('/api/clientes/:id', authenticateToken, async (req, res) => {
