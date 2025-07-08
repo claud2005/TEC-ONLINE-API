@@ -418,23 +418,37 @@ app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (
       valorTotal, observacoes, autorServico
     } = req.body;
 
-    const imagens = req.files.map(file => file.filename);
+    let imagens = [];
+
+    // Upload para o Blob da Vercel
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(async (file) => {
+        const fileName = `servicos/${req.params.id}/${Date.now()}-${file.originalname}`;
+        const blob = await put(fileName, file.buffer, {
+          access: 'public',
+          contentType: file.mimetype,
+        });
+        return blob.url;
+      });
+
+      imagens = await Promise.all(uploadPromises);
+    }
 
     const updateData = {
-      dataServico: dataServico,
-      horaServico: horaServico,
-      status: status,
+      dataServico,
+      horaServico,
+      status,
       cliente: nomeCliente,
       descricao: problemaCliente,
       responsavel: autorServico,
-      observacoes: observacoes,
-      autorServico: autorServico,
+      observacoes,
+      autorServico,
       nomeCompletoCliente: nomeCliente,
       contatoCliente: telefoneContato,
-      modeloAparelho: modeloAparelho,
-      marcaAparelho: marcaAparelho,
+      modeloAparelho,
+      marcaAparelho,
       problemaRelatado: problemaCliente,
-      solucaoInicial: solucaoInicial,
+      solucaoInicial,
       valorTotal: parseFloat(valorTotal),
       imagens
     };
