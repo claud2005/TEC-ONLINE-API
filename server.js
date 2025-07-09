@@ -285,8 +285,83 @@ app.get('/api/profile', authenticateToken, async (req, res, next) => {
     next(error); // Passa o erro para o middleware de tratamento de erros
   }
 });
+app.get('/api/profile', authenticateToken, async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
+    }
+
+    console.log(`🔍 Buscando perfil do usuário ID: ${userId}`); // Usando o emoji corretamente
+
+    // Buscar o usuário no banco de dados
+    const user = await User.findById(userId).select('fullName username profilePicture');
+
+    if (!user) {
+      console.warn(`⚠️ Usuário com ID ${userId} não encontrado.`);
+      return res.status(404).json({ message: 'Usuário não encontrado' });
+    }
+
+    console.log(`✅ Perfil do usuário encontrado:`, user);
+    return res.status(200).json(user);
+  } catch (error) {
+    console.error('❌ Erro ao buscar perfil:', error);
+    next(error); // Passa o erro para o middleware de tratamento de erros
+  }
+});
 
 // Rota para atualizar o perfil do usuário autenticado
+app.put('/api/profile', authenticateToken, upload.single('profilePicture'), async (req, res, next) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ message: 'ID do usuário não encontrado no token' });
+    }
+
+    const { fullName, username } = req.body;
+
+    if (!fullName || !username) {
+      return res.status(400).json({ message: 'Nome completo e nome de usuário são obrigatórios' });
+    }
+
+    let photoUrl = null;
+
+    if (req.file) {
+      const fileBuffer = req.file.buffer;
+
+      if (!fileBuffer) {
+        return res.status(500).json({ message: 'Erro ao processar imagem: buffer ausente' });
+      }
+
+      const fileName = `users/${userId}/${Date.now()}-${req.file.originalname}`;
+
+      const blob = await put(fileName, fileBuffer, {
+        access: 'public',
+        contentType: req.file.mimetype,
+      });
+
+      photoUrl = blob.url;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { fullName, username, profilePicture: photoUrl },
+      { new: true }
+    ).select('fullName username profilePicture');
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'Utilizador não encontrado' });
+    }
+
+    return res.status(200).json(updatedUser);
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    next(error);
+  }
+});
+// Rota para atualizar um serviço existente
 app.put('/api/servicos/:id', authenticateToken, upload.array('imagens'), async (req, res) => {
   try {
     const userId = req.user?.userId;
